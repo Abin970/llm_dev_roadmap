@@ -61,7 +61,7 @@ if __name__ == "__main__":
 # One sentence: when would you actually want temperature=0 in a real app,
 # and when would that be the wrong choice?
 #
-# we can cleary see the incresing variance in the outputs as the temperature increases.
+# we can clearly see the incresing variance in the outputs as the temperature increases.
 # At temperature=0, the outputs are mostly identical, which is useful for tasks 
 # requiring consistency and reliability. However, at higher temperatures,
 #  the outputs become more diverse and creative, which can be beneficial for 
