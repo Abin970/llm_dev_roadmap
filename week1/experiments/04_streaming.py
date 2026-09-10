@@ -58,8 +58,24 @@ if __name__ == "__main__":
 # --- OBSERVATIONS ------------------------------------------------------------
 # non-streaming total time: 7.16s
 # streaming TTFT: 2.31s      streaming total time: 4.75s
+#
+#
 # Was total time roughly the same both ways, as hypothesized? If not, why
 # might it differ (network variance, provider load)?
 #
+# Streaming can't make the underlying generation process faster, 
+# because it's the exact same model doing the exact same job of producing 
+# text one piece at a time either way — streaming just hands you each piece as 
+# it's made instead of holding them all until the end.
+# better comparison would be to run the same prompt multiple times and average the results, 
+# but the point of this experiment is to see the TTFT difference, not to benchmark throughput.
+#
+#
+#
 # In what kind of UI/product does the TTFT improvement actually matter, and
 # in what kind of backend workflow does it not matter at all?
+#
+# streaming : chatapps, voice bots
+#
+#
+#

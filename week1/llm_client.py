@@ -40,6 +40,7 @@ load_dotenv()
 # tiering (cheap for Week 1-2, mid for Week 3-5, frontier for Week 6-8) lives
 # in .env; see .env.example for the table.
 DEFAULT_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5-nano")
+api_key = os.environ.get("OPENAI_API_KEY_LLM_PRJ")
 
 MAX_TOKENS = 2000  # arbitrary, but a reasonable default for most tasks
 
@@ -60,7 +61,7 @@ _client: OpenAI | None = None
 def get_client() -> OpenAI:
 	global _client
 	if _client is None:
-		_client = OpenAI()
+		_client = OpenAI(api_key=api_key)
 
 	return _client
 
