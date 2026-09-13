@@ -25,4 +25,8 @@ def search(args: SearchArgs) -> str:
     always be the same regardless of args.query, or to lightly reference
     args.query in the fake results -- either is enough for this exercise.
     """
-    raise NotImplementedError
+    return (
+        "1. Example Result 1: This is a fake search result for your query.\n"
+        "2. Example Result 2: Another example result, also unrelated to the query.\n"
+        "3. Example Result 3: Yet another example result, just for demonstration."
+    )

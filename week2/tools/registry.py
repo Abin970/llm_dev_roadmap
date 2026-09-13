@@ -24,6 +24,18 @@ class ToolError(Exception):
 
 _REGISTRY: dict[str, tuple[type[BaseModel], Callable]] = {}
 
+#
+#@dataclass
+#class ToolSpec:
+#    schema: type[BaseModel]
+#    handler: Callable
+#    needs_context: bool = False      # does the handler want server-side info (user id, session)?
+#    requires_approval: bool = False  # should this pause for a human "yes" before running?
+#    retry_policy: RetryPolicy | None = None  # None = no retries, or (max_attempts, base_delay)
+#
+#
+#
+
 
 def register(name: str, schema: type[BaseModel]):
     """

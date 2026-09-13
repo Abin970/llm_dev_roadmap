@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from certifi.__main__ import args
 from pydantic import BaseModel
 
 from .registry import register
