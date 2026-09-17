@@ -1,0 +1,171 @@
+QUESTION = """How many incidents in the incidents table are still unresolved? 
+        Multiply that count by the retry cap Aurora added after incident INC-4821, 
+        then tell me whether the result exceeds PulseQueue's free-tier webhook retry limit."""
+
+
+
+$ python experiments/01_hand_rolled_loop.py 
+Event: EventType.STARTED, Data: {}
+Event: EventType.TOOL_CALL, 
+        Data: {'name': 'sqlite_query', 'args': {'query': 'PRAGMA table_info(incidents);'}}
+Event: EventType.ERROR, 
+        Data: {'name': 'sqlite_query',
+             'message': 'handler error: Only SELECT queries are allowed.'}
+Event: EventType.TOOL_CALL, 
+        Data: {'name': 'sqlite_query', 
+                'args': {'query': "SELECT COUNT(*) FROM incidents WHERE status IS NULL OR status <> 'resolved';"}}
+Event: EventType.ERROR, 
+        Data: {'name': 'sqlite_query', 
+        'message': 'handler error: no such column: status'}
+Event: EventType.TOOL_CALL, 
+        Data: {'name': 'sqlite_query', 
+        'args': {'query': 'SELECT * FROM incidents LIMIT 1;'}}
+Event: EventType.TOOL_RESULT, 
+        Data: {'name': 'sqlite_query', 
+        'result': "(1, 'checkout-service', 'high', 1)"}
+Event: EventType.TOOL_CALL, 
+        Data: {'name': 'sqlite_query', 
+        'args': {'query': 'SELECT * FROM incidents LIMIT 20;'}}
+Event: EventType.TOOL_RESULT, 
+        Data: {'name': 'sqlite_query', 
+        'result': "(1, 'checkout-service', 'high', 1)\n(2, 'checkout-service', 'low', 1)\n(3, 'auth-service', 'medium', 0)\n(4, 'payments-service', 'critical', 1)"}
+
+Event: EventType.TOOL_CALL, 
+        Data: {'name': 'sqlite_query', 
+        'args': {'query': 'PRAGMA table_info(incidents);'}}
+Event: EventType.ERROR, 
+        Data: {'name': 'sqlite_query', 
+        'message': 'handler error: Only SELECT queries are allowed.'}
+Event: EventType.TOOL_CALL, 
+        Data: {'name': 'sqlite_query', 
+        'args': {'query': "SELECT COLUMN_NAME, DATA_TYPE FROM information_schema.columns WHERE table_name='incidents';"}}
+Event: EventType.ERROR, 
+        Data: {'name': 'sqlite_query', 
+        'message': 'handler error: no such table: information_schema.columns'}
+Event: EventType.TOOL_CALL, 
+        Data: {'name': 'sqlite_query', 
+        'args': {'query': "SELECT sql FROM sqlite_master WHERE type='table' AND name='incidents';"}}
+Event: EventType.TOOL_RESULT, 
+        Data: {'name': 'sqlite_query', 
+        'result': "('CREATE TABLE incidents (\\n            id INTEGER PRIMARY KEY,\\n            service TEXT NOT NULL,\\n            severity TEXT NOT NULL,\\n            resolved INTEGER NOT NULL\\n        )',)"}
+Event: EventType.TOOL_CALL, 
+        Data: {'name': 'sqlite_query', 
+        'args': {'query': 'SELECT * FROM incidents LIMIT 100;'}}
+Event: EventType.TOOL_RESULT, 
+        Data: {'name': 'sqlite_query', 
+        'result': "(1, 'checkout-service', 'high', 1)\n(2, 'checkout-service', 'low', 1)\n(3, 'auth-service', 'medium', 0)\n(4, 'payments-service', 'critical', 1)"}
+Event: EventType.TOOL_CALL, 
+        Data: {'name': 'search_docs', 
+        'args': {'query': 'INC-4821 retry cap Aurora after incident'}}
+Event: EventType.TOOL_RESULT, 
+        Data: {'name': 'search_docs', 
+        'result': '(no matching docs)'}
+Event: EventType.TOOL_CALL, 
+        Data: {'name': 'search_web', 
+        'args': {'query': 'INC-4821 Aurora retry cap free webhook limit PulseQueue'}}
+Event: EventType.TOOL_RESULT, 
+        Data: {'name': 'search_web', 
+        'result': "According to devtools-weekly.example: PulseQueue's free tier caps webhook retries at 5 attempts per event before it gives up.\n\nAccording to changelog.pulsequeue.example: PulseQueue v4.1 (released 2025-02) switched its default retry strategy from fixed delay to exponential backoff.\n\nAccording to a thread on infra-forum.example: several users report PulseQueue's dead-letter queue only retains failed events for 24 hours before purging them."}
+Event: EventType.TOOL_CALL, 
+        Data: {'name': 'search_docs', 
+        'args': {'query': 'PulseQueue free-tier webhook retry limit'}}
+Event: EventType.TOOL_RESULT, 
+        Data: {'name': 'search_docs', 
+        'result': '(no matching docs)'}
+Event: EventType.COMPLETED, 
+        Data: {'content': "I wasn't able to finish within the allowed number of steps."}
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+2nd run after fixing indentation:
+
+        Event: EventType.STARTED, Data: {}
+        Message content: None
+        Event: EventType.TOOL_CALL, Data: {'name': 'sqlite_query', 'args': {'query': 'SELECT DISTINCT status FROM incidents LIMIT 100;'}}
+        Event: EventType.ERROR, Data: {'name': 'sqlite_query', 'message': 'handler error: no such column: status'}
+        Event: EventType.TOOL_CALL, Data: {'name': 'sqlite_query', 'args': {'query': 'SELECT COUNT(*) AS total, SUM(CASE WHEN status IS NULL THEN 1 ELSE 0 END) AS null_status_count FROM incidents;'}}
+        Event: EventType.ERROR, Data: {'name': 'sqlite_query', 'message': 'handler error: no such column: status'}
+        Message content: None
+        Event: EventType.TOOL_CALL, Data: {'name': 'sqlite_query', 'args': {'query': 'PRAGMA table_info(incidents);'}}
+        Event: EventType.ERROR, Data: {'name': 'sqlite_query', 'message': 'handler error: Only SELECT queries are allowed.'}
+        Message content: None
+        Event: EventType.TOOL_CALL, Data: {'name': 'sqlite_query', 'args': {'query': 'SELECT * FROM incidents LIMIT 5;'}}
+        Event: EventType.TOOL_RESULT, Data: {'name': 'sqlite_query', 'result': "(1, 'checkout-service', 'high', 1)\n(2, 'checkout-service', 'low', 1)\n(3, 'auth-service', 'medium', 0)\n(4, 'payments-service', 'critical', 1)"}
+        Message content: None
+        Event: EventType.TOOL_CALL, Data: {'name': 'sqlite_query', 'args': {'query': 'SELECT * FROM incidents;'}}
+        Event: EventType.TOOL_RESULT, Data: {'name': 'sqlite_query', 'result': "(1, 'checkout-service', 'high', 1)\n(2, 'checkout-service', 'low', 1)\n(3, 'auth-service', 'medium', 0)\n(4, 'payments-service', 'critical', 1)"}
+        Message content: None
+        Event: EventType.TOOL_CALL, Data: {'name': 'search_docs', 'args': {'query': 'INC-4821 Aurora retry cap'}}
+        Event: EventType.TOOL_RESULT, Data: {'name': 'search_docs', 'result': '(no matching docs)'}
+        Event: EventType.TOOL_CALL, Data: {'name': 'search_web', 'args': {'query': 'INC-4821 Aurora retry cap'}}
+        Event: EventType.TOOL_RESULT, Data: {'name': 'search_web', 'result': "According to devtools-weekly.example: PulseQueue's free tier caps webhook retries at 5 attempts per event before it gives up.\n\nAccording to changelog.pulsequeue.example: PulseQueue v4.1 (released 2025-02) switched its default retry strategy from fixed delay to exponential backoff.\n\nAccording to a thread on infra-forum.example: several users report PulseQueue's dead-letter queue only retains failed events for 24 hours before purging them."}
+        Event: EventType.TOOL_CALL, Data: {'name': 'sqlite_query', 'args': {'query': 'SELECT COUNT(*) FROM incidents'}}
+        Event: EventType.TOOL_RESULT, Data: {'name': 'sqlite_query', 'result': '(4,)'}
+        Message content: 
+        Event: EventType.COMPLETED, Data: {'content': ''}
+
+
+         gpt-5-nano is a reasoning model, and reasoning models spend tokens on invisible internal reasoning 
+         that still counts against max_completion_tokens. By iteration 6, messages has grown large 
+         (system prompt + user question + 5 rounds of tool-call/tool-result pairs), and the model may 
+         have used its whole 2000-token budget "thinking" before it had any budget left to write the 
+         visible answer — that gives you finish_reason: "length" with content: "" and no tool_calls, which 
+         is exactly the if not message.tool_calls: branch firing with empty content, not the "wasn't able to finish" 
+         fallback.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+QUESTION2 = "Is PulseQueue's free-tier webhook retry cap higher or lower than the retry cap Aurora added after incident INC-4821?"
+
+python experiments/01_hand_rolled_loop.py 
+Event: EventType.STARTED, Data: {}
+Message content: None
+Event: EventType.TOOL_CALL, 
+    Data: {'name': 'search_docs', 
+            'args': {'query': 'PulseQueue free-tier webhook retry cap'}}
+Event: EventType.TOOL_RESULT, 
+    Data: {'name': 'search_docs', 
+            'result': 'retry_patterns.md: ...# Retry patterns  Fixed-delay retries can cause a thundering herd: every caller retries at the same ...'}
+Event: EventType.TOOL_CALL, 
+    Data: {'name': 'search_docs', 
+            'args': {'query': 'Aurora retry cap after incident INC-4821'}}
+Event: EventType.TOOL_RESULT, 
+    Data: {'name': 'search_docs', 
+            'result': 'incident_aurora_4821.md: ...# Incident INC-4821 -- Aurora billing-sync job  On 2024-11-03, the Aurora billing-sync job began fai...'}
+Message content: None
+Event: EventType.TOOL_CALL, 
+    Data: {'name': 'search_docs', '
+            args': {'query': 'PulseQueue free-tier webhook retry cap'}}
+Event: EventType.TOOL_RESULT, 
+    Data: {'name': 'search_docs', 
+            'result': 'retry_patterns.md: ...# Retry patterns  Fixed-delay retries can cause a thundering herd: every caller retries at the same ...'}
+Message content: None
+Event: EventType.TOOL_CALL, 
+    Data: {'name': 'search_docs', 
+            'args': {'query': 'Aurora retry cap after incident INC-4821'}}
+Event: EventType.TOOL_RESULT, 
+    Data: {'name': 'search_docs', 
+            'result': 'incident_aurora_4821.md: ...# Incident INC-4821 -- Aurora billing-sync job  On 2024-11-03, the Aurora billing-sync job began fai...'}
+
+Message content: The search did not return specific details about PulseQueue's free-tier webhook retry cap or the retry cap added by Aurora after incident INC-4821. 
+                Without this specific information, I cannot definitively compare the two.
+
+If you have any additional details or if there's a particular document or context you'd like to examine further, please let me know!
+
+
+Event: EventType.COMPLETED, 
+    Data: {'content': "The search did not return specific details about PulseQueue's free-tier webhook 
+    retry cap or the retry cap added by Aurora after incident INC-4821. Without this specific information, 
+    I cannot definitively compare the two.\n\nIf you have any additional details or if there's a particular 
+    document or context you'd like to examine further, please let me know!"}
+
+
+Answer: Lower. PulseQueue's free-tier webhook retry cap (5) is lower than Aurora's retry cap after INC-4821 (7).
+
+Reasoning chain:
+1. search_docs on something like "INC-4821 Aurora retry cap" → hits incident_aurora_4821.md 
+    → Aurora's retry cap after the incident = 7 (before dead-lettering to aurora-dlq).
+2. search_web on something like "PulseQueue free-tier webhook retry cap" → returns the fake results 
+    → PulseQueue's free tier = 5 attempts.
+3. Compare: 5 < 7 → PulseQueue's cap is lower.

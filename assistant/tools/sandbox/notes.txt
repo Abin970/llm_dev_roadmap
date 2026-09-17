@@ -1,0 +1,7 @@
+This is a sample file for file_reader.py's exercise.
+
+Anything you ask the file_reader tool to read has to resolve to a path
+inside this sandbox/ directory -- that's the whole point of the exercise.
+Try reading this file first, then try to break your own path check with
+something like "../llm_client.py" or "../../.env" and confirm it's
+correctly rejected.
