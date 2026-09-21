@@ -24,8 +24,10 @@ def main() -> None:
         CREATE TABLE incidents (
             id INTEGER PRIMARY KEY,
             service TEXT NOT NULL,
+            symptom TEXT NOT NULL,
             severity TEXT NOT NULL,
-            resolved INTEGER NOT NULL
+            resolved INTEGER NOT NULL,
+            incident_ref TEXT
         );
 
         DROP TABLE IF EXISTS deploys;
@@ -38,13 +40,19 @@ def main() -> None:
         """
     )
 
+    # NOTE: no fix/resolution is stored here on purpose -- resolved just
+    # means "eventually closed out," not "here's how." incident_ref points
+    # to a postmortem doc (search_docs) that explains root cause only; the
+    # actual fix has to be reasoned out from separate tool/library docs
+    # (search_web), not read off a row.
     cur.executemany(
-        "INSERT INTO incidents (service, severity, resolved) VALUES (?, ?, ?)",
+        "INSERT INTO incidents (service, symptom, severity, resolved, incident_ref) "
+        "VALUES (?, ?, ?, ?, ?)",
         [
-            ("checkout-service", "high", 1),
-            ("checkout-service", "low", 1),
-            ("auth-service", "medium", 0),
-            ("payments-service", "critical", 1),
+            ("aurora-billing-sync", "connection pool exhausted under load, stale idle connections", "high", 1, "INC-4821"),
+            ("checkout-service", "checkout failures during flash-sale traffic spikes, connection pool exhausted", "high", 1, "INC-5102"),
+            ("auth-service", "token validation returning intermittent 401s", "medium", 0, None),
+            ("payments-service", "webhook retries exceeding third-party rate limit, cascading 429s", "critical", 1, "INC-4990"),
         ],
     )
     cur.executemany(

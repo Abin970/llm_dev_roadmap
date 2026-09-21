@@ -39,7 +39,7 @@ def file_reader(args: FileReaderArgs) -> str:
    Read the contents of a text file, ensuring it is within the allowed sandbox directory.
    args:
        args (FileReaderArgs): The arguments containing the filename to read.
-   rSeturns:
+   returns:
        str: The contents of the file as a string.
    """
    candidate = (ALLOWED_DIR / args.filename).resolve()

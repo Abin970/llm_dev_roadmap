@@ -30,23 +30,13 @@ from typing import Iterator
 
 from events import Event, EventType
 from llm_client import DEFAULT_MODEL
-from tools.registry import dispatch
+from tools.registry import dispatch, to_langchain_tools
+from langchain.agents import create_agent
+from langchain.agents.middleware import ModelCallLimitMiddleware
+from langchain_openai import ChatOpenAI
+import os
 
-# TODO: one thin wrapper function per registered tool, reusing dispatch()
-# so the actual tool logic isn't duplicated. LangChain's create_agent
-# expects plain Python functions with type-hinted args and a docstring --
-# the docstring becomes the tool's description, same as
-# to_openai_tools()'s "description" field in registry.py. e.g.:
-#
-#   def calculator(expression: str) -> str:
-#       """Evaluate a basic arithmetic expression."""
-#       return dispatch("calculator", {"expression": expression})
-#
-# Write one of these for each of the 5 registered tools (calculator,
-# file_reader, sqlite_query, search_docs, search_web), matching each
-# function's argument names to that tool's Pydantic schema fields.
-
-
+    
 class LangChainAgent:
     def __init__(self, *, model: str = DEFAULT_MODEL, max_iterations: int = 6) -> None:
         self.model = model
@@ -95,4 +85,44 @@ class LangChainAgent:
         from the docs, not gospel, since streaming payload shapes are the
         part of any framework most likely to drift between versions.
         """
-        raise NotImplementedError
+        tools = to_langchain_tools()
+
+        
+
+        yield Event(EventType.STARTED, {})
+        final_content = None
+        try:
+            model = ChatOpenAI(model=self.model, api_key=os.environ["OPENAI_API_KEY_LLM_PRJ"],max_tokens=5000)
+            agent = create_agent(
+                         model=model,
+                         tools=tools,
+                         system_prompt=(
+                             "You are a research/engineering assistant. Use the "
+                             "available tools when they help answer the question."
+                            ),
+                         middleware=[ModelCallLimitMiddleware(
+                                              run_limit=self.max_iterations, exit_behavior="end")],
+                    )
+
+            for mode, chunk_update in agent.stream(
+                {"messages": [{"role": "user", "content": user_message}]},
+                stream_mode=["updates"],
+            ):
+                print(f"stream chunk :{chunk_update}")
+                for source, update in chunk_update.items():
+                    if source == "ModelCallLimitMiddleware.before_model" and update and update.get("jump_to") == "end":
+                        final_content = update["messages"][-1].content
+                        continue
+                    if source not in ("model","tools") or not update:
+                        continue
+                    last = update["messages"][-1]
+                    if source == "tools":
+                        yield Event(EventType.TOOL_RESULT,{"content": str(last.content)})
+                    elif source == "model" and getattr(last,"tool_calls", None):
+                        for tc in last.tool_calls:
+                            yield Event(EventType.TOOL_CALL, {"name": tc["name"], "args": tc["args"]})
+                    elif source == "model":
+                        final_content = last.content
+            yield Event(EventType.COMPLETED, {"content":final_content})
+        except Exception as e:
+            yield Event(EventType.ERROR, {"content": str(e)})

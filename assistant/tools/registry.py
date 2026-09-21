@@ -59,26 +59,11 @@ def to_openai_tools() -> list[dict[str, Any]]:
     OpenAI API expects for its `tools=` parameter, so the LLM can
     actually see and call them (Week 1/2 never wired this up -- `chat()`
     never passed tools at all).
-
-    TODO: for each (name, (schema, handler)) in _REGISTRY.items(), build:
-        {
-            "type": "function",
-            "function": {
-                "name": name,
-                "description": (handler.__doc__ or "").strip(),
-                "parameters": schema.model_json_schema(),
-            },
-        }
-    and return the list of these. `schema.model_json_schema()` is
+    `schema.model_json_schema()` is
     Pydantic's built-in method for turning a BaseModel into a JSON Schema
     dict -- this is exactly why every tool got a Pydantic schema back in
     Week 2, not just for validation.
 
-    Heads up: your Week 2 tool handlers' docstrings were written as TODO
-    instructions to yourself, not user-facing descriptions -- the model
-    will actually read whatever `description` you send it, so worth
-    rewriting each handler's docstring into one plain sentence describing
-    what the tool does before relying on this.
     """
     tools_list: list[dict[str, Any]] = []
     for name, (schema, handler) in _REGISTRY.items():
@@ -92,3 +77,19 @@ def to_openai_tools() -> list[dict[str, Any]]:
         }
         tools_list.append(tool_dict)
     return tools_list
+
+
+def to_langchain_tools() -> list:
+
+    from langchain_core.tools import tool as lc_tool
+    def _make(name, schema, handler):
+        def run(**kwargs):
+            try:
+                return dispatch(name, kwargs)
+            except ToolError as e:
+                return f"error: {e}"
+        run.__name__ = name
+        run.__doc__ = (handler.__doc__ or "").strip()
+        return lc_tool(run, args_schema=schema) 
+
+    return [_make(name, schema, handler) for name,(schema, handler) in _REGISTRY.items()]

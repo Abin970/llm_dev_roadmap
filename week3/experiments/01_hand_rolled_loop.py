@@ -28,7 +28,8 @@ QUESTION1 = """How many incidents in the incidents table are still unresolved?
         then tell me whether the result exceeds PulseQueue's free-tier webhook retry limit."""
 
 
-QUESTION2 = "Is PulseQueue's free-tier webhook retry cap higher or lower than the retry cap Aurora added after incident INC-4821?"
+QUESTION2 = """Is PulseQueue's free-tier webhook retry cap higher 
+            or lower than the retry cap Aurora added after incident INC-4821?"""
 
 
 def main() -> None:

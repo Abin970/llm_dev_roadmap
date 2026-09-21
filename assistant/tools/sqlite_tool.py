@@ -24,8 +24,10 @@ class SqliteQueryArgs(BaseModel):
 @register("sqlite_query", SqliteQueryArgs)
 def sqlite_query(args: SqliteQueryArgs) -> str:
     """Run a read-only SELECT query against a sample database with two
-    tables: incidents(id, service, severity, resolved) and
-    deploys(id, service, version, deployed_at). Only SELECT is allowed."""
+    tables: incidents(id, service, symptom, severity, resolved,
+    incident_ref) and deploys(id, service, version, deployed_at).
+    incident_ref (nullable) points to a postmortem doc searchable via
+    search_docs. Only SELECT is allowed."""
     if not args.query.strip().lower().startswith("select"):
         raise ValueError("Only SELECT queries are allowed.")
 
