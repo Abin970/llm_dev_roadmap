@@ -23,6 +23,7 @@ from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from agent.graph import GraphAgent
 from agent.loop import AgentLoop
 from conversation import ConversationState
 from events import Event, EventType
@@ -38,6 +39,11 @@ _state = ConversationState()
 
 class ChatRequest(BaseModel):
     message: str
+
+
+class ResumeRequest(BaseModel):
+    thread_id: str
+    approved: bool
 
 
 def run_turn(user_message: str) -> Iterator[Event]:
@@ -62,5 +68,20 @@ async def research_endpoint(req: ChatRequest):
     return StreamingResponse(that_generator(), media_type=
     "text/event-stream"). Unlike /chat, this doesn't need ConversationState
     -- each research question is independent, no multi-turn history.
+    """
+    raise NotImplementedError
+
+
+@app.post("/research/resume")
+async def research_resume_endpoint(req: ResumeRequest):
+    """New in Week 4 -- resumes a /research run that paused at
+    GraphAgent's apply_fix_node interrupt(), waiting on a human decision.
+
+    TODO: wrap GraphAgent().resume(req.thread_id, {"approved": req.approved})
+    the same way /research wraps AgentLoop().run(...) -- stream Events
+    over SSE identically. The client needs req.thread_id from whatever
+    "paused" event /research emitted when the original run suspended, so
+    that event's payload has to carry it -- decide that shape in
+    agent/graph.py's GraphAgent.run() before this endpoint can work.
     """
     raise NotImplementedError
