@@ -38,8 +38,19 @@ from ..state import GraphState
 
 
 def search_docs_node(state: GraphState) -> dict:
-    raise NotImplementedError
-
+     try:
+         result = dispatch("search_docs",{"query":state["plan"]})
+     except ToolError as e:
+         result = f"error:{e}"
+         
+     return {"evidence": [f"[search_docs] {result}"]}
+         
+         
 
 def search_web_node(state: GraphState) -> dict:
-    raise NotImplementedError
+     try:
+         result = dispatch("search_web", {"query":state["plan"]})
+     except ToolError as e:
+          result = f"error: {e}"
+
+     return {"evidence": [f"[search_web] {result}"]}

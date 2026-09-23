@@ -45,12 +45,12 @@ TODO: fill in the field types below (most don't need a reducer -- only
 from __future__ import annotations
 
 from typing_extensions import Annotated, TypedDict
-
+import operator
 
 class GraphState(TypedDict):
     question: str
     plan: str
-    evidence: list  # TODO: needs a reducer -- see the module docstring above
+    evidence: Annotated[list[str], operator.add]   # merged, not overwrittenbove
     synthesis: str
     review_verdict: str
     retry_count: int

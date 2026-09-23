@@ -61,3 +61,20 @@ if __name__ == "__main__":
 # at max_iterations, or an honest "I can't answer this"?
 
 
+# Now as for experiment 03_break_it we have already seen both 
+#     a) almost always failing tool-call 
+#     b) unanswerable question with given tools, 
+# instead of testing them by hand I want 
+#     1] how do I identify and measure such deviation where llm-halucianates to fill the information gap 
+#     2] how I design by keeping mind these failure modes.
+
+# hallucination:=> Grounding checks: fact check againts tools call result
+# unanswerable question and failing_tool_calls :=> llm admits that it can't answer(abstention check)
+
+
+#Desgining for these failure modes
+# - Make abstention an explict instruction
+# - Make tool "no result" states loud and unabiguous
+# - Ask for citations
+# -Circuit-breaking on tool calls
+

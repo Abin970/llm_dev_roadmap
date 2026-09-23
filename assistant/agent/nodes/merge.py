@@ -22,4 +22,6 @@ from ..state import GraphState
 
 
 def merge_node(state: GraphState) -> dict:
-    raise NotImplementedError
+     
+     
+     return {}

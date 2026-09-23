@@ -8,6 +8,78 @@ copilot** that investigates an incident, proposes a fix, checks its own
 answer is actually grounded in evidence before trusting it, and pauses
 for a human's sign-off before it (pretends to) touch anything.
 
+## Graph flow
+
+How one `/research` call moves through the graph, and which tool each
+node touches:
+
+```
+POST /research  (new thread_id)
+        │
+        ▼
+     [START]
+        │
+        ▼
+   ┌──────────┐
+   │ planner  │   retry_count += 1; decides what to search for
+   └────┬─────┘
+        │  fan-out — both run in the SAME step
+   ┌────┴─────────────────┐
+   ▼                      ▼
+┌────────────────┐  ┌────────────────┐
+│ search_docs_node│  │ search_web_node│
+│ → dispatch(     │  │ → dispatch(    │
+│   "search_docs")│  │   "search_web")│
+└────────┬────────┘  └────────┬───────┘
+         │                    │
+         └─────────┬──────────┘   fan-in — waits for BOTH branches
+                    ▼
+              ┌───────────┐
+              │   merge   │   evidence = docs-evidence + web-evidence
+              └─────┬─────┘
+                    ▼
+             ┌──────────────┐
+             │ synthesizer  │   chat(): root cause + fix, citing evidence
+             └──────┬───────┘
+                    ▼
+               ┌──────────┐
+               │ reviewer │   grounding check on the synthesis
+               └────┬─────┘
+                    │
+        ┌───────────┴────────────────┐
+     approved                     rejected
+        │                             │
+        ▼                       retry_count >= 2 ?
+  ┌─────────────┐                 │          │
+  │ apply_fix_  │                no          yes
+  │ node        │                 │          │
+  │             │                 ▼          ▼
+  │ interrupt() │           back to      [END] —
+  │  ⏸ PAUSES   │            planner     forced best-effort
+  │  the graph  │           (loop)        answer
+  └──────┬──────┘
+         │   ⋯ suspended, thread_id checkpointed ⋯
+         │
+         │   POST /research/resume {thread_id, approved}
+         ▼
+   decision.approved?
+     │no  → synthesis += "(fix not applied)"  ──► [END]
+     │yes → dispatch("apply_fix", ...)         ──► [END]
+```
+
+Tools touched, by node:
+
+| Node               | Tool called                    | Gated behind approval? |
+|  ---               |    ---                         |        ---             |
+| `search_docs_node` | `dispatch("search_docs", ...)` | no — read-only |
+| `search_web_node`  | `dispatch("search_web", ...)`  | no — read-only |
+| `apply_fix_node`   | `dispatch("apply_fix", ...)`   | **yes** — only after `interrupt()` resumes with `approved=True`|
+
+The only cycle in the graph is `reviewer → planner`, capped at
+`retry_count >= 2`. Everything else is a straight line, including the
+fan-out/fan-in — the parallelism is just topology (two nodes both fed by
+`planner`, both feeding `merge`), not a loop.
+
 ## Setup (one-time)
 
 1. From the repo root, activate the venv:

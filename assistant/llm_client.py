@@ -53,7 +53,7 @@ load_dotenv()
 DEFAULT_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5-nano")
 api_key = os.environ.get("OPENAI_API_KEY_LLM_PRJ")
 
-MAX_TOKENS = 5000  # arbitrary, but a reasonable default for most tasks
+MAX_TOKENS = 2000  # arbitrary, but a reasonable default for most tasks
 
 T = TypeVar("T", bound=BaseModel)
 

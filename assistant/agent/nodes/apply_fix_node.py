@@ -59,5 +59,15 @@ from tools.registry import ToolError, dispatch
 from ..state import GraphState
 
 
+
 def apply_fix_node(state: GraphState) -> dict:
-    raise NotImplementedError
+
+     decision = interrupt({
+            "action": "apply_fix",
+            "proposed_fix": state["synthesis"],
+    })
+
+     if not decision.get("approved"):
+                 return {"synthesis": state["synthesis"] + "\n\n(fix not applied -- human declined)"}
+     result = dispatch("apply_fix", {...})
+     return {"synthesis": state["synthesis"] + f"\n\n(fix applied: {result})"}

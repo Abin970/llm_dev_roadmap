@@ -203,18 +203,23 @@ Event(type=<EventType.COMPLETED: 'COMPLETED'>,
 data={'content': 'Short answer: I can’t find an internal incident that matches 
                     “notification-service connection pool exhausted” under sustained load. 
                     The only close hit was INC-5102 for checkout-service during a flash-sale, 
-                    which isn’t about notification-service.\n\nWhat I did just now\n
-                    - Queried internal incident notes for notification-service pool/exhaustion patterns. No matching internal incidents found.\n
-                    - Found a reference to a different service (checkout-service) in INC-5102, but no direct relevance to notification-service.\n\nLikely root causes (in practice, based on common patterns)\n
-                    - Connection pool too small for sustained/high load: more concurrent connections required than the pool allows, causing waiters and timeouts.\n
-                    - Connection leaks: connections aren’t being returned to the pool (missing finally/cleanup in error paths), leading to gradual pool exhaustion.\n- Long-running queries or slow DB operations tying up connections.\n
-                    - Bursts in traffic that exceed what the pool is sized for, without autoscaling or backpressure.\n
-                    - Misconfiguration or drift in pool settings (max pool size, idle timeout, max lifetime, connection validation).\n\nRecommended next steps (actionable and scoped)\n1) Gather immediate telemetry\n- Pool stats: max/min pool size, current pool usage (active vs idle), number of waiting threads, and any connection timeouts.\n
-                    - Query/transaction patterns: long-running queries or transactions holding connections.\n
-                    - DB-side: max connections, per-user limits, and any spikes in DB wait events.\n
-                    - Recent deploys or config changes that could affect pooling or DB access.\n2) Check for leaks and proper release\n
-                    - Audit code paths to ensure every acquired connection is released in all paths (including error paths). Look for missing finally/close blocks, especially around transactions.\n
-                    - If using a known pooler (e.g., HikariCP, node-postgres Pool, SQLAlchemy pool, etc.), enable leak detection or similar diagnostics temporarily to surface leaks.\n3) Short-term mitigations\n
+                    which isn’t about notification-service.\n\n
+                    **What I did just now\n**
+                        - Queried internal incident notes for notification-service pool/exhaustion patterns. No matching internal incidents found.\n
+                        - Found a reference to a different service (checkout-service) in INC-5102, but no direct relevance to notification-service.\n\nLikely root causes (in practice, based on common patterns)\n
+                        - Connection pool too small for sustained/high load: more concurrent connections required than the pool allows, causing waiters and timeouts.\n
+                        - Connection leaks: connections aren’t being returned to the pool (missing finally/cleanup in error paths), leading to gradual pool exhaustion.\n
+                        - Long-running queries or slow DB operations tying up connections.\n
+                        - Bursts in traffic that exceed what the pool is sized for, without autoscaling or backpressure.\n
+                        - Misconfiguration or drift in pool settings (max pool size, idle timeout, max lifetime, connection validation).\n\nRecommended next steps (actionable and scoped)\n
+                        1) Gather immediate telemetry\n- Pool stats: max/min pool size, current pool usage (active vs idle), number of waiting threads, and any connection timeouts.\n
+                        - Query/transaction patterns: long-running queries or transactions holding connections.\n
+                        - DB-side: max connections, per-user limits, and any spikes in DB wait events.\n
+                        - Recent deploys or config changes that could affect pooling or DB access.\n
+                    2) Check for leaks and proper release\n
+                        - Audit code paths to ensure every acquired connection is released in all paths (including error paths). Look for missing finally/close blocks, especially around transactions.\n
+                        - If using a known pooler (e.g., HikariCP, node-postgres Pool, SQLAlchemy pool, etc.), enable leak detection or similar diagnostics temporarily to surface leaks.\n
+                    3) Short-term mitigations\n
                   
                     - If the DB can handle more connections, briefly raise the pool max size and/or reduce wait timeouts to avoid backlogs, but monitor DB load to avoid overwhelming it.\n
                     - Introduce or tighten backpressure at the edge (rate limits, circuit breakers) to prevent saturation during spikes.\n
@@ -225,3 +230,6 @@ data={'content': 'Short answer: I can’t find an internal incident that matches
                     - What is the current pool configuration (min/max, max lifetime, idle timeout)?\n
                     - What database are we connecting to, and what is its max connections?\n
                     - Do you want me to search more deeply in internal notes for any similar patterns, or pull/inspect current telemetry if you can share it?\n\nIf you want, I can run more targeted internal searches or try to pull the latest incident-related telemetry (if you can grant access or provide logs/dashboards).'})
+
+
+                    

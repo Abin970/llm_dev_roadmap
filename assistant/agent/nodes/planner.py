@@ -29,6 +29,30 @@ from __future__ import annotations
 
 from ..state import GraphState
 
+from llm_client import chat
 
 def planner_node(state: GraphState) -> dict:
-    raise NotImplementedError
+    retry_count = state.get("retry_count", 0) + 1
+    messages = None
+    if state.get("question"):
+        question = state.get("question")
+
+        messages = [
+            {"role": "developer", "content": (
+                "You are the planning step of an SRE on-call copilot. Given an "
+                "incident question, output a short investigation plan: what "
+                "service and what keywords to search for. Do not answer the "
+                "question yourself -- only say what to look up."
+            )},
+            {"role": "user", "content": question},
+        ]
+    elif state.get("review_verdict").startsWith("rejected"):
+        review_verdict = state.get("review_verdict")
+        messages.append({
+            "role": "user",
+            "content": f"Previous attempt was rejected: {review_verdict}.Revise the plan.",
+        })
+    
+    response_message = chat(messages=messages,max_tokens=2000)
+    
+    return {"plan":response_message, "retry_count":retry_count}

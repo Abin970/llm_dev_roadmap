@@ -36,4 +36,7 @@ def apply_fix(args: ApplyFixArgs) -> str:
     is the one tool in the registry a caller should gate behind human
     approval before invoking, since it's the only one that changes
     anything (even if only pretend)."""
-    raise NotImplementedError
+
+    return f"applied fix: {args.service}.{args.config_key}={args.config_value}"
+
+    

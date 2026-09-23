@@ -34,6 +34,31 @@ from llm_client import chat
 
 from ..state import GraphState
 
+from llm_client import chat
+
 
 def synthesizer_node(state: GraphState) -> dict:
-    raise NotImplementedError
+
+     system_prompt = (
+        "You are the synthesis step of an SRE on-call copilot. Given an "
+        "incident question and retrieved evidence, propose a root cause "
+        "and a concrete fix.\n\n"
+        "Rules:\n"
+        "- Every claim you make MUST cite which evidence entry it comes "
+        "from, e.g. '...idle connections recycled too fast [search_docs]...' "
+        "or '...raising max_idle_time [search_web]...'.\n"
+        "- Do not state anything as fact unless it's directly supported "
+        "by the evidence below. If the evidence doesn't support a clear "
+        "answer, say that explicitly instead of guessing.\n"
+        "- Be concise: one short root cause, then one concrete fix."
+    )
+
+     user_content = f"Question: {state['question']}\n\nEvidence:\n{evidence_block}"
+
+     messages = [
+                 {"role": "developer", "content": system_prompt},
+                 {"role": "user", "content": user_content},
+             ]
+     response = chat(messages,max_tokens=2000)
+
+     return {"synthesis": chat(response)}
