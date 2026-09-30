@@ -61,13 +61,26 @@ from ..state import GraphState
 
 
 def apply_fix_node(state: GraphState) -> dict:
-
+     # any line of code above interrupt() will be executed twice[idemtopency for side effects]
      decision = interrupt({
             "action": "apply_fix",
             "proposed_fix": state["synthesis"],
     })
 
+     fix = state["synthesis"]
      if not decision.get("approved"):
-                 return {"synthesis": state["synthesis"] + "\n\n(fix not applied -- human declined)"}
-     result = dispatch("apply_fix", {...})
-     return {"synthesis": state["synthesis"] + f"\n\n(fix applied: {result})"}
+                 updated = fix.model_copy(update={
+                     "response_message": fix.response_message + "\n\n(fix not applied -- human declined)"
+                 })
+                 return {"synthesis": updated}
+     result = dispatch(
+                 "apply_fix", {
+                                "service":fix.service,
+                                "config_key":fix.config_key,
+                                "config_value":fix.config_value
+                            }
+                        )
+     updated = fix.model_copy(update={
+         "response_message": fix.response_message + f"\n\n(fix applied: {result})"
+     })
+     return {"synthesis": updated}

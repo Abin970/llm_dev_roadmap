@@ -21,35 +21,29 @@ from enum import Enum
 from typing import Any
 
 
-# TODO: one member per meaningful step in a /chat request's lifecycle.
+# one member per meaningful step in a /chat request's lifecycle.
 # At minimum: STARTED, TOKEN_DELTA, TOOL_CALL, TOOL_RESULT, COMPLETED, ERROR.
 class EventType(str, Enum):
   STARTED = "STARTED"
   TOKEN_DELTA = "TOKEN_DELTA"
   TOOL_CALL = "TOOL_CALL"
   TOOL_RESULT = "TOOL_RESULT"
+  NODE_UPDATE = "NODE_UPDATE"
+  PAUSED = "PAUSED"
   COMPLETED = "COMPLETED"
   ERROR = "ERROR"
 
 
 @dataclass
 class Event:
-    """
-    TODO:
-      - two fields: `type: EventType` and `data: dict[str, Any]` (the
-        payload shape differs per type -- e.g. TOKEN_DELTA carries the
-        text fragment, TOOL_CALL carries {"name": ..., "args": ...},
-        ERROR carries {"message": ...} -- that's fine, `data` is
-        deliberately loose so one Event shape covers every type)
-      - a `to_sse(self) -> str` method that formats this event as one
-        Server-Sent-Events message. SSE wire format is:
-            event: <type>\\ndata: <json>\\n\\n
-        (two trailing newlines terminate the message). Use
-        `json.dumps(self.data)` for the data line.
-    """
+
     type: EventType
     data: dict[str, Any]
 
     def to_sse(self) -> str:
         """Format this event as a Server-Sent-Events message."""
-        return f"event: {self.type.value}\ndata: {json.dumps(self.data)}\n\n"
+        def _default(obj):
+           if hasattr(obj, "model_dump"):
+              return obj.model_dump()
+           return str(obj)
+        return f"event: {self.type.value}\ndata: {json.dumps(self.data, default=_default)}\n\n"

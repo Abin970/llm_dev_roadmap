@@ -113,7 +113,7 @@ def chat_structured(
     refused."""
     completion = get_client().chat.completions.parse(
         model=model, messages=messages, response_format=schema,
-        max_tokens=max_tokens,
+        max_completion_tokens=max_tokens,
     )
     message = completion.choices[0].message
     if message.parsed is not None:

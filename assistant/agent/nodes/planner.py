@@ -46,13 +46,13 @@ def planner_node(state: GraphState) -> dict:
             )},
             {"role": "user", "content": question},
         ]
-    elif state.get("review_verdict").startsWith("rejected"):
+    if state.get("review_verdict", "").startswith("rejected"):
         review_verdict = state.get("review_verdict")
         messages.append({
             "role": "user",
             "content": f"Previous attempt was rejected: {review_verdict}.Revise the plan.",
         })
     
-    response_message = chat(messages=messages,max_tokens=2000)
+    response_message = chat(messages=messages,max_tokens=2000, model="gpt-4.1-nano")
     
     return {"plan":response_message, "retry_count":retry_count}

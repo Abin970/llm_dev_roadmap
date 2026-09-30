@@ -22,6 +22,18 @@ which is genuinely useful for 02_retry_guard.py's experiment (you'll
 stub this node out entirely there to force rejections regardless of
 input). Pick one and note the choice -- eval_checks.py's
 check_grounding() needs different code depending on which you pick.
+
+Week 5 TODO (yours) -- a deterministic citation check BEFORE the LLM
+judge. It's cheap, needs no model call, and catches fabricated
+citations outright:
+    evidence_text = "\\n".join(state["evidence"])
+    missing = [c for c in fix.citations if f"[{c}]" not in evidence_text]
+    -> reject if `missing` is non-empty ("cites chunks that were never
+       retrieved: ...")
+    -> reject if `citations` is empty but the answer still asserts a fix
+Only when both pass is it worth paying for llm_review(). Also,
+heuristic_review() below still looks for the old branch tags; switch it
+to chunk ids too if you keep using it.
 """
 from __future__ import annotations
 
@@ -47,6 +59,7 @@ def llm_review(synthesis: str, evidence: list[str]) -> str:
     regexing a yes/no out of prose, and it's exactly the kind of
     structured-output use case Week 1's exercises were building toward.
     """
+
     evidence_block = "\n".join(evidence) if evidence else "(no evidence retrieved)"
     messages = [
         {
@@ -66,7 +79,7 @@ def llm_review(synthesis: str, evidence: list[str]) -> str:
             "content": f"Evidence:\n{evidence_block}\n\nSynthesis:\n{synthesis}",
         },
     ]
-    verdict = chat_structured(messages, GroundingVerdict)
+    verdict = chat_structured(messages, GroundingVerdict,model="gpt-4.1-nano")
     if verdict is None:
         # Fail closed: no parseable verdict is treated as "not grounded"
         # rather than silently approving -- an unreviewable answer
@@ -81,9 +94,9 @@ _WORD_RE = re.compile(r"\w+")
 
 
 def _significant_words(text: str) -> set[str]:
-    """Same 'what counts as a meaningful word' rule as search_docs.py /
-    search_web.py's _word_weight -- digit-bearing or long (>4 chars)
-    words carry the signal; short/common words are noise."""
+    """Same 'what counts as a meaningful word' rule as search_docs.py's
+    _word_weight -- digit-bearing or long (>4 chars) words carry the
+    signal; short/common words are noise."""
     words = _WORD_RE.findall(text.lower())
     return {w for w in words if any(c.isdigit() for c in w) or len(w) > 4}
 
@@ -95,7 +108,7 @@ def heuristic_review(synthesis: str, evidence: list[str]) -> str:
     for 02_retry_guard.py, where you want rejections forceable without
     depending on a live model call.
     """
-    if "[search_docs]" not in synthesis and "[search_web]" not in synthesis:
+    if "[search_docs]" not in synthesis and "[search_vendor_docs]" not in synthesis:
         return "rejected: synthesis cites no evidence source"
 
     evidence_words = _significant_words(" ".join(evidence))
@@ -120,5 +133,6 @@ def reviewer_node(state: GraphState) -> dict:
     # you want a fully deterministic reviewer (e.g. while isolating the
     # retry-loop topology itself from LLM variance). Whichever is live
     # here is the one eval_checks.check_grounding() should mirror.
-    verdict = llm_review(state["synthesis"], state["evidence"])
+    applicable_fix = state["synthesis"]
+    verdict = llm_review(applicable_fix.response_message, state["evidence"])
     return {"review_verdict": verdict}

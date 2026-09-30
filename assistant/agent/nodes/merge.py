@@ -5,7 +5,7 @@ TODO: with the `evidence` reducer in state.py already combining both
 branches' contributions by the time this node runs, this node might not
 need to do much beyond returning an empty/no-op partial update --
 LangGraph guarantees merge_node only runs once BOTH search_docs_node and
-search_web_node have completed (a node with multiple incoming edges
+search_vendor_docs_node have completed (a node with multiple incoming edges
 waits for all of them before its step runs; that's the graph's topology
 in graph.py doing the actual guaranteeing, not this function's body).
 

@@ -45,45 +45,6 @@ class LangChainAgent:
     def run(self, user_message: str) -> Iterator[Event]:
         """Run the same research question through LangChain's agent,
         yielding Events so it's directly comparable to AgentLoop.run().
-
-        TODO:
-          1. from langchain.agents import create_agent
-             from langchain.agents.middleware import ModelCallLimitMiddleware
-          2. tools = [calculator, file_reader, ...]  # the wrapper functions above
-          3. agent = create_agent(
-                 model=f"openai:{self.model}",
-                 tools=tools,
-                 system_prompt=(
-                     "You are a research/engineering assistant. Use the "
-                     "available tools when they help answer the question."
-                 ),
-                 middleware=[ModelCallLimitMiddleware(
-                     run_limit=self.max_iterations, exit_behavior="end")],
-             )
-          4. yield Event(EventType.STARTED, {})
-          5. final_content = None
-             for chunk in agent.stream(
-                 {"messages": [{"role": "user", "content": user_message}]},
-                 stream_mode=["updates"],
-             ):
-                 for source, update in chunk.items():
-                     last = update["messages"][-1]
-                     if source == "tools":
-                         yield Event(EventType.TOOL_RESULT, {"content": str(last.content)})
-                     elif source == "model" and getattr(last, "tool_calls", None):
-                         for tc in last.tool_calls:
-                             yield Event(EventType.TOOL_CALL, {"name": tc["name"], "args": tc["args"]})
-                     elif source == "model":
-                         final_content = last.content
-          6. yield Event(EventType.COMPLETED, {"content": final_content})
-
-        Wrap this in try/except so an exception surfaced from inside
-        LangChain still yields an ERROR event instead of crashing --
-        same expectation as AgentLoop. The exact keys inside each stream
-        chunk are worth printing/inspecting once by hand first (`print(chunk)`
-        in the loop) -- treat the shape above as a strong starting point
-        from the docs, not gospel, since streaming payload shapes are the
-        part of any framework most likely to drift between versions.
         """
         tools = to_langchain_tools()
 

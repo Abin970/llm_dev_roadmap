@@ -27,14 +27,33 @@ Keep the citation instruction explicit in the prompt -- reviewer_node's
 grounding check (and week4/experiments/eval_checks.py's
 check_grounding()) both depend on being able to trace each claim back to
 an actual evidence entry, not just plausible-sounding prose.
+
+Week 5 TODO (yours) -- citations at chunk level, not branch level:
+  - Evidence now holds several retrieved chunks per branch, each block
+    starting with "[<chunk_id>]" (retrieval.format_hits). Tell the model
+    to cite those ids inline, e.g. "...terminates the session
+    [postgres:runtime-config-client#12]...", and to list every id it
+    used in ApplyFixesArgs.citations (see state.py). The old
+    "[search_docs]" / "[search_vendor_docs]" tags still prefix each
+    branch's evidence, but a whole branch is too coarse to check a
+    claim against.
+  - Replace the prompt's example, which still cites the retired
+    fictional PoolGuard setting (max_idle_time).
+  - When the evidence doesn't answer the question, it should say so
+    rather than guess. The golden set has questions the corpus can't
+    answer, and those are exactly where this gets tested.
+  - While you're here: the `response is None` fallback below assigns to
+    `respone` (typo) and builds ApplyFixesArgs positionally, but
+    Pydantic models only take keyword arguments. So today that branch
+    raises TypeError instead of falling back.
 """
 from __future__ import annotations
 
-from llm_client import chat
+from llm_client import chat_structured
 
-from ..state import GraphState
+from ..state import GraphState, ApplyFixesArgs
 
-from llm_client import chat
+from pydantic import BaseModel
 
 
 def synthesizer_node(state: GraphState) -> dict:
@@ -46,19 +65,20 @@ def synthesizer_node(state: GraphState) -> dict:
         "Rules:\n"
         "- Every claim you make MUST cite which evidence entry it comes "
         "from, e.g. '...idle connections recycled too fast [search_docs]...' "
-        "or '...raising max_idle_time [search_web]...'.\n"
+        "or '...raising max_idle_time [search_vendor_docs]...'.\n"
         "- Do not state anything as fact unless it's directly supported "
         "by the evidence below. If the evidence doesn't support a clear "
         "answer, say that explicitly instead of guessing.\n"
         "- Be concise: one short root cause, then one concrete fix."
     )
 
-     user_content = f"Question: {state['question']}\n\nEvidence:\n{evidence_block}"
+     user_content = f"Question: {state['question']}\n\nEvidence:\n{state['evidence']}"
 
      messages = [
                  {"role": "developer", "content": system_prompt},
                  {"role": "user", "content": user_content},
              ]
-     response = chat(messages,max_tokens=2000)
-
-     return {"synthesis": chat(response)}
+     response = chat_structured(messages,schema=ApplyFixesArgs, max_tokens=2000, model="gpt-4.1-nano")
+     if response is None:
+          respone = ApplyFixesArgs("error: llm chat responed None","dummy-service","some-key","some-value")
+     return {"synthesis": response}
