@@ -1,0 +1,26 @@
+
+
+state reducer
+
+checkpointer:   The checkpointer saves a full snapshot of GraphState after every step, keyed by thread_id.
+                
+                Why it matters here specifically: it's what makes interrupt()/Command(resume=...) possible at all. 
+                When apply_fix_node calls interrupt(), the graph suspends — the checkpoint saved right before that 
+                node ran is the thing that lets a later, separate call reconstruct exactly where things left off and continue.
+
+
+When would you nest an agent loop inside one node of a larger deterministic graph, instead of making the whole graph agentic?
+
+    within in the same graph we implemented
+        planner -> {search_docs, search_web} -> merge: id deterministic
+
+            A real SRE copilot wouldn't work that way — sometimes one search nails it; sometimes the first result 
+         is a dead lead and you need to look up a related incident, check deploy history in sqlite_query, 
+         or follow a citation into a different doc
+
+            How many searches, and which tools, genuinely depends on what earlier searches returned — that's not knowable in advance
+
+
+            replace the fixed fan-out with a single investigate node that internally runs a bounded ReAct loop (literally AgentLoop from Week 3, reused almost as-is) — it decides which tool to call, looks at the result, decides whether it has enough evidence or needs another round, up to its own small max_iterations, and only then returns one evidence list as its output.
+        
+            planner -> investigate -> merge/synthesizer

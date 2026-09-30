@@ -1,5 +1,13 @@
 # Week 4 — Workflow Orchestration with LangGraph (Project V2)
 
+> **Changed in Week 5:** `search_web` is now `search_vendor_docs`, and
+> both search tools do real retrieval over a real corpus instead of
+> reading the made-up fixtures this page mentions (`tools/docs/*.md`,
+> PoolGuard/BackoffKit). The graph's shape is unchanged. `eval_cases.py`
+> was rewritten against the real corpus, keeping each case's position.
+> This README describes the graph as it was built in Week 4; see
+> `week5_rag_fundamentals/README.md` for what changed.
+
 Why agent loops alone don't survive production. Week 3's `AgentLoop`
 answers a question with an implicit while-loop; this week the same
 assistant becomes an explicit, inspectable graph — and gets grounded in

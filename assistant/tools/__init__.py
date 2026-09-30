@@ -14,6 +14,6 @@ from . import (  # noqa: F401
     calculator,
     file_reader,
     search_docs,
-    search_web,
+    search_vendor_docs,
     sqlite_tool,
 )

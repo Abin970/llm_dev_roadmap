@@ -4,3 +4,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 *.db
+blog/
+# Week 5 RAG: fetched third-party docs + built indexes -- never committed
+# (re-create with `python -m ingestion.fetch` from assistant/)
+data/

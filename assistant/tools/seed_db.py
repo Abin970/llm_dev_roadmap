@@ -44,7 +44,7 @@ def main() -> None:
     # means "eventually closed out," not "here's how." incident_ref points
     # to a postmortem doc (search_docs) that explains root cause only; the
     # actual fix has to be reasoned out from separate tool/library docs
-    # (search_web), not read off a row.
+    # (search_vendor_docs), not read off a row.
     cur.executemany(
         "INSERT INTO incidents (service, symptom, severity, resolved, incident_ref) "
         "VALUES (?, ?, ?, ?, ?)",

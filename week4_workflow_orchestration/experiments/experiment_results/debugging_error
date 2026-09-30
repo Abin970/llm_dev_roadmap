@@ -1,0 +1,54 @@
+File "/usr/lib/python3.12/json/encoder.py", line 180, in default
+      raise TypeError(f'Object of type {o.__class__.__name__} '
+  TypeError: Object of type ApplyFixesArgs is not JSON serializable
+
+
+   synthesizer_node returned an ApplyFixesArgs object (a Pydantic model instance) into state["synthesis"], 
+   and GraphAgent.run()'s NODE_UPDATE event wraps that raw update dict as Event.data.
+   When to_sse() calls json.dumps(self.data), Python's stdlib json module has no idea how to serialize a Pydantic BaseModel 
+   — it only knows plain dicts/lists/strings/numbers — so it throws TypeError: Object of type ApplyFixesArgs is not JSON serializable.
+
+
+
+   curl -N -X POST localhost:8000/research   -H "Content-Type: application/json"   -d '{"message": "checkout-service is failing intermittently during a flash-sale traffic spike -- what is the root cause and how do we fix it?"}'
+event: NODE_UPDATE
+data: {"node": "planner", "update": {"plan": "Service: checkout-service  \nKeywords to search for: \"checkout-service\" \"intermittent failure\" \"flash sale traffic spike\" \"error logs\" \"database connection issues\" \"timeout errors\" \"service crashes\" \"resource exhaustion\"", "retry_count": 1}}
+
+event: TOOL_RESULT
+data: {"name": "search_web", "result": ["[search_web] According to poolguard-docs.example/config: PoolGuard connection pool -- configuration reference. max_idle_time (default 30s) controls how quickly an idle connection is recycled; raising it keeps connections alive longer under bursty traffic. prewarm(n) opens n connections ahead of time, useful right before an expected load spike (e.g. a scheduled sale) instead of waiting for demand to create them on the fly."]}
+
+event: TOOL_RESULT
+data: {"name": "search_docs", "result": ["[search_docs] incident_checkout_5102.md: ...# Incident INC-5102 -- checkout-service  During a flash-sale traffic spike, checkout-service began f..."]}
+
+event: NODE_UPDATE
+data: {"node": "merge", "update": null}
+
+event: NODE_UPDATE
+data: {"node": "synthesizer", "update": {"synthesis": {"response_message": "The root cause appears to be the checkout-service's connection pool recycling idle connections too quickly during traffic spikes, leading to connection exhaustion [search_docs]. To fix this, increase the \"max_idle_time\" setting in the pool configuration to keep connections alive longer during high load periods [search_web].", "service": "checkout-service", "config_key": "max_idle_time", "config_value": "60s"}}}
+
+event: NODE_UPDATE
+data: {"node": "reviewer", "update": {"review_verdict": "rejected: The synthesis claims that the root cause is the checkout-service's connection pool recycling idle connections too quickly during traffic spikes. However, the evidence only states that raising 'max_idle_time' keeps connections alive longer and describes its usefulness before a load spike. It does not provide any information indicating the actual cause of the incident, such as connections being recycled too quickly or connection exhaustion. Therefore, the synthesis's root cause is not supported by the evidence, even though the proposed fix aligns with the described configuration option."}}
+
+event: NODE_UPDATE
+data: {"node": "planner", "update": {"plan": "Service to investigate: checkout-service\n\nKeywords to search:\n- connection pooling\n- connection pool recycling\n- idle connection timeout\n- max_idle_time configuration\n- database connection errors\n- connection leaks during traffic spikes\n- error logs during purchase failures\n- load spike impact on database connections\n- checkout-service failure modes during high traffic", "retry_count": 2}}
+
+event: TOOL_RESULT
+data: {"name": "search_web", "result": ["[search_web] According to poolguard-docs.example/config: PoolGuard connection pool -- configuration reference. max_idle_time (default 30s) controls how quickly an idle connection is recycled; raising it keeps connections alive longer under bursty traffic. prewarm(n) opens n connections ahead of time, useful right before an expected load spike (e.g. a scheduled sale) instead of waiting for demand to create them on the fly."]}
+
+event: TOOL_RESULT
+data: {"name": "search_docs", "result": ["[search_docs] incident_checkout_5102.md: ...# Incident INC-5102 -- checkout-service  During a flash-sale traffic spike, checkout-service began f..."]}
+
+event: NODE_UPDATE
+data: {"node": "merge", "update": null}
+
+event: NODE_UPDATE
+data: {"node": "synthesizer", "update": {"synthesis": {"response_message": "The root cause appears to be exhausted database connections due to insufficient connection pool sizing or recycling settings during traffic spikes, as suggested by the incident and configuration documentation [search_docs, search_web]. A concrete fix is to prewarm the connection pool prior to the flash sale to ensure enough connections are available, and to raise max_idle_time to keep connections alive longer under bursty traffic [search_web].", "service": "checkout-service", "config_key": "max_idle_time", "config_value": "60s"}}}
+
+event: NODE_UPDATE
+data: {"node": "reviewer", "update": {"review_verdict": "approved"}}
+
+event: PAUSED
+data: {"thread_id": "7517b9c2-3ec5-4cac-809c-b939b5f8dbe3", "action": "apply_fix", "proposed_fix": {"response_message": "The root cause appears to be exhausted database connections due to insufficient connection pool sizing or recycling settings during traffic spikes, as suggested by the incident and configuration documentation [search_docs, search_web]. A concrete fix is to prewarm the connection pool prior to the flash sale to ensure enough connections are available, and to raise max_idle_time to keep connections alive longer under bursty traffic [search_web].", "service": "checkout-service", "config_key": "max_idle_time", "config_value": "60s"}}
+
+
+APPLY_FIX NODE is a second endpoint, didn't log the uuid first time :(.

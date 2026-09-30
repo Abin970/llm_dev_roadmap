@@ -1,0 +1,34 @@
+# Week 5: Postgres + pgvector for the RAG index. Week 8 extends this same
+# file (app, cache, etc.) instead of starting a new one.
+#
+#   docker compose up -d pgvector      # start (data persists in the volume)
+#   docker compose down                # stop (volume kept)
+#   docker compose down -v             # stop AND wipe the index
+#
+# Local development only: the password is not a secret, and the port is
+# bound to 127.0.0.1 so nothing outside this machine can reach it. Host
+# port 5433 (not 5432) avoids clashing with any Postgres already
+# installed locally.
+services:
+  pgvector:
+    image: pgvector/pgvector:0.8.6-pg18   # pinned: pgvector 0.8.6 on PostgreSQL 18
+    container_name: sre-copilot-pgvector
+    environment:
+      POSTGRES_USER: copilot
+      POSTGRES_PASSWORD: copilot
+      POSTGRES_DB: copilot
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      # PostgreSQL 18 images keep data under /var/lib/postgresql/18/docker,
+      # so the volume mounts the parent directory (not .../data as in
+      # images for 17 and older).
+      - pgvector-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U copilot -d copilot"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  pgvector-data:

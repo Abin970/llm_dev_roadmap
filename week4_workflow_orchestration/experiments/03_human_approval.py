@@ -21,10 +21,14 @@ import uuid
 import _bootstrap  # noqa: F401
 
 from agent.graph import GraphAgent
+from eval_cases import EVAL_CASES
+import eval_checks as eval
+
+_case = EVAL_CASES[1]
 
 # TODO: a question your fixtures can carry all the way to an "approved"
 # synthesis, so the run actually reaches apply_fix_node.
-QUESTION = "..."
+QUESTION = _case.question
 
 
 def run_and_pause() -> str:

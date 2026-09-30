@@ -12,7 +12,7 @@ config_value="120s" ->
 This is the one tool in the registry that graph.py's apply_fix_node gates
 behind a human-approval interrupt() before ever calling dispatch() on it
 -- everything else in this project's toolset (calculator, file_reader,
-sqlite_query, search_docs, search_web) is read-only and safe to call
+sqlite_query, search_docs, search_vendor_docs) is read-only and safe to call
 without asking anyone first; this is the first one that (pretends to)
 change something.
 """
