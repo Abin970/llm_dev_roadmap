@@ -94,7 +94,7 @@ INDEX_DIR = REPO_ROOT / "data" / "index"     # gitignored, like data/corpus
 DEFAULT_DSN = "postgresql://copilot:copilot@127.0.0.1:5433/copilot"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init= True)
 class Chunk:
     chunk_id: str      # f"{doc_id}#{position}" -- what citations point at
     doc_id: str        # manifest doc_id, e.g. "postgres:runtime-config-connection"

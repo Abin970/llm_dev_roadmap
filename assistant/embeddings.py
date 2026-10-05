@@ -44,25 +44,54 @@ from typing import Protocol
 
 import numpy as np
 
-from llm_client import get_client  # noqa: F401  (you'll need it)
+from llm_client import get_client, count_tokens  # noqa: F401  (you'll need it)
 
 EMBED_MODEL = "text-embedding-3-small"
 EMBED_DIM = 1536
 MAX_TOKENS_PER_INPUT = 8192
 MAX_TOKENS_PER_REQUEST = 300_000
+MAX_INPUTS_PER_REQUEST = 2048
 
+# curl https://api.openai.com/v1/embeddings \
+#   -H "Authorization: Bearer $OPENAI_API_KEY" \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "input": "Hello world",
+#     "model": "text-embedding-3-small",
+#     "encoding_format": "float",
+#     "dimensions": 3
+#   }'
+
+# {
+#   "object": "list",
+#   "data": [
+#     {
+#       "object": "embedding",
+#       "embedding": [
+#         0.26726124,
+#         0.53452248,
+#         0.80178373
+#       ],
+#       "index": 0
+#     }
+#   ],
+#   "model": "text-embedding-3-small",
+#   "usage": {
+#     "prompt_tokens": 2,
+#     "total_tokens": 2
+#   }
+# }
 
 class Embedder(Protocol):
     model: str
     dim: int
 
     def embed(self, texts: list[str]) -> np.ndarray:
-        """(len(texts), dim) float32, L2-normalized rows, same order as texts."""
-        ...
-
+         """(len(texts), dim) float32, L2-normalized rows, same order as texts."""
+         ...
     def embed_query(self, text: str) -> np.ndarray:
-        """(dim,) float32, normalized -- the query side of retrieval."""
-        ...
+       """(dim,) float32, normalized -- the query side of retrieval."""
+       ...
 
 
 class OpenAIEmbedder:
@@ -71,9 +100,55 @@ class OpenAIEmbedder:
 
     def __init__(self) -> None:
         self.tokens_used = 0
+        
+    
 
     def embed(self, texts: list[str]) -> np.ndarray:
-        raise NotImplementedError("Week 5 TODO -- see this module's docstring")
+       if not texts:
+        return np.empty((0, EMBED_DIM), dtype=np.float32)
+       
+       total_request_token = 0
+       batch = []
+       request_batches = []
+       embedding_array = []
+       for i,text in enumerate(texts):
+           if not text.strip():
+            raise ValueError(f"text {i} is empty")
+             
+           token_count = count_tokens(text, model= EMBED_MODEL)
+           if token_count> MAX_TOKENS_PER_INPUT:
+              raise ValueError(
+                 f"text {i}: {text} exceeds token limit {MAX_TOKENS_PER_INPUT}"
+                )
+          
+           if(total_request_token+token_count> MAX_TOKENS_PER_REQUEST
+              or len(batch) >= MAX_INPUTS_PER_REQUEST):
+             request_batches.append(batch)
+             batch=[]
+             total_request_token=token_count
+           else: 
+             total_request_token += token_count
+        
+           batch.append(text)
+
+       if batch:   
+           request_batches.append(batch)
+        
+       for batch in request_batches:
+          response = get_client().embeddings.create(
+              model = EMBED_MODEL,
+              input = batch
+          )
+          response.data.sort(key = lambda  data:data.index)
+          vectors=np.array([item.embedding for item in response.data], dtype=np.float32)   # shape (batch_size, 1536)
+          embedding_array.append(vectors)
+          self.tokens_used += response.usage.total_tokens
+
+       result = np.vstack(embedding_array)
+       norms = np.linalg.norm(result, axis=1, keepdims=True)
+       result = result / norms
+       return result
+          
 
     def embed_query(self, text: str) -> np.ndarray:
-        raise NotImplementedError("Week 5 TODO -- see this module's docstring")
+       return self.embed([text])[0]        

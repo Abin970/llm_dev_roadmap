@@ -64,22 +64,66 @@ from vectorstore import Chunk
 
 from .loaders import SourceDoc
 
+from langchain_text_splitters import (
+    TokenTextSplitter,
+    RecursiveCharacterTextSplitter,
+    MarkdownHeaderTextSplitter,
+    )
+
 ENCODING = "cl100k_base"
 DEFAULT_SIZE = 500
 DEFAULT_OVERLAP = 50
 
+def _make_chunk(doc: SourceDoc, position: int, text: str, section: str = "") -> Chunk:
+    return Chunk(chunk_id=f"{doc.doc_id}#{position}", doc_id=doc.doc_id, text=text,
+                 source=doc.source, doc_type=doc.doc_type, layer=doc.layer,
+                 url=doc.url, title=doc.title, section=section)
 
-def fixed_chunks(doc: SourceDoc, size: int = DEFAULT_SIZE, overlap: int = DEFAULT_OVERLAP) -> list[Chunk]:
-    raise NotImplementedError("Week 5 TODO -- see this module's docstring")
+def fixed_chunks(doc: SourceDoc, size: int = DEFAULT_SIZE, 
+                 overlap: int = DEFAULT_OVERLAP) -> list[Chunk]:
+     
+     splitter = TokenTextSplitter(encoding_name=ENCODING, chunk_size=size, chunk_overlap=overlap)
+
+     chunks = []
+     for i, text in enumerate(splitter.split_text(doc.text)):
+         if not text.strip():
+            continue
+         chunks.append(_make_chunk(doc, position=i, text=text))
+     return chunks
 
 
 def recursive_chunks(doc: SourceDoc, size: int = DEFAULT_SIZE, overlap: int = DEFAULT_OVERLAP) -> list[Chunk]:
-    raise NotImplementedError("Week 5 TODO -- see this module's docstring")
+     splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+            encoding_name=ENCODING, chunk_size=size, chunk_overlap=overlap
+        )
+     
+     chunks = []
+
+     for i,text in enumerate(splitter.split_text(doc.text)):
+         if not text.strip():
+            continue
+         chunks.append(_make_chunk(doc, position=i, text=text))
+     return chunks
 
 
 def markdown_header_chunks(doc: SourceDoc, size: int = DEFAULT_SIZE, overlap: int = DEFAULT_OVERLAP) -> list[Chunk]:
-    raise NotImplementedError("Week 5 TODO -- see this module's docstring")
+     headers_to_split_on=[("#", "h1"), ("##", "h2"), ("###", "h3")]
+     header_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on,
+                                           strip_headers=False)
+     size_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+                                encoding_name=ENCODING, chunk_size=size, chunk_overlap=overlap)
 
+     sections = header_splitter.split_text(doc.text)
+     pieces = size_splitter.split_documents(sections)
+     chunks = []
+     
+     for i,piece in enumerate(pieces):
+         text = piece.page_content
+         section = " › ".join(piece.metadata[k] for k in ("h1", "h2", "h3") if k in piece.metadata)
+         if not text.strip():
+            continue
+         chunks.append(_make_chunk(doc, position=i, text=text, section=section))
+     return chunks
 
 STRATEGIES = {
     "fixed": fixed_chunks,

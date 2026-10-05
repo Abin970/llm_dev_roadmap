@@ -39,8 +39,8 @@ configuration reference, operations/admin, monitoring/metrics,
 troubleshooting, failure/HA behavior. No tutorials, install guides or
 client API docs. `assistant/ingestion/sources.py` lists every page.
 
-| Layer | Source | Docs | ~Tokens | Phase |
-|---|---|---:|---:|:---:|
+| Layer   | Source  | Docs  | ~Tokens   | Phase   |
+|---      |---      |---:   |---:       |:---:    |
 | Database | PostgreSQL 18 docs (HTML) | 23 | 153k | A |
 | Orchestration (+ Ingress, logging, ConfigMaps) | Kubernetes docs | 33 | 149k | A |
 | Alert runbooks | prometheus-operator/runbooks | 108 | 25k | A |
@@ -71,16 +71,16 @@ client API docs. `assistant/ingestion/sources.py` lists every page.
 
 ## What we use, and where
 
-| Stage | Library | Lives in |
-|---|---|---|
-| Fetch | `git` sparse checkout + `requests` | `assistant/ingestion/sources.py`, `fetch.py` *(done)* |
-| Load | plain Python (md), `beautifulsoup4` + `markdownify` (vendor HTML), `trafilatura` (postmortems) | `assistant/ingestion/loaders.py` |
-| Chunk | `langchain-text-splitters` + `tiktoken` | `assistant/ingestion/chunkers.py` |
-| Embed | `openai` → `text-embedding-3-small` (1536 dims) | `assistant/embeddings.py` |
-| Store | `faiss-cpu`; Postgres + pgvector (`psycopg`, `pgvector`) | `assistant/vectorstore.py` |
-| Retrieve + format | both stores behind `VectorStore.search()` | `assistant/retrieval.py`, `tools/search_docs.py`, `tools/search_vendor_docs.py` |
-| Cite + check | `chat_structured()` + `ApplyFixesArgs.citations` | `agent/state.py`, `agent/nodes/synthesizer.py`, `agent/nodes/reviewer.py` |
-| Measure | the golden set + checks | `experiments/golden_retrieval.py` *(done)*, `experiments/retrieval_checks.py` |
+| Stage             | Library                                     | Lives in  |
+|---                |---                                          |---        |
+| Fetch             | `git` sparse checkout + `requests`          | `assistant/ingestion/sources.py`, `fetch.py` *(done)* |
+| Load              | plain Python (md), `beautifulsoup4` + `markdownify` (vendor HTML), `trafilatura` (postmortems) | `assistant/ingestion/loaders.py` |
+| Chunk             | `langchain-text-splitters` + `tiktoken`     | `assistant/ingestion/chunkers.py` |
+| Embed             | `openai` → `text-embedding-3-small` (1536 dims) | `assistant/embeddings.py` |
+| Store             | `faiss-cpu`; Postgres + pgvector (`psycopg`, `pgvector`) | `assistant/vectorstore.py` |
+| Retrieve + format | both stores behind `VectorStore.search()`   | `assistant/retrieval.py`, `tools/search_docs.py`, `tools/search_vendor_docs.py` |
+| Cite + check      | `chat_structured()` + `ApplyFixesArgs.citations` | `agent/state.py`, `agent/nodes/synthesizer.py`, `agent/nodes/reviewer.py` |
+| Measure           | the golden set + checks | `experiments/golden_retrieval.py` *(done)*, `experiments/retrieval_checks.py` |
 
 ## Setup (one-time)
 
