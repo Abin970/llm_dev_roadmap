@@ -83,11 +83,14 @@ TODO (yours) -- PgVectorStore
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Protocol
 
+import faiss
 import numpy as np
+import json
+
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 INDEX_DIR = REPO_ROOT / "data" / "index"     # gitignored, like data/corpus
@@ -131,25 +134,67 @@ class VectorStore(Protocol):
 
 class FaissStore:
     """TODO (yours): see "FaissStore" in the module docstring."""
+    index: faiss.IndexFlatIP
+    chunks: list[Chunk]
 
     def __init__(self, dim: int) -> None:
-        raise NotImplementedError
+        self.index = faiss.IndexFlatIP(dim)
+        self.chunks = []
 
     def add(self, chunks: list[Chunk], vectors: np.ndarray) -> None:
-        raise NotImplementedError
+         if len(chunks) != len(vectors):
+            raise ValueError("lengths of chunks and vectors are not equal")
+         
+         contiguous_array = np.ascontiguousarray(vectors, dtype=np.float32)
+         self.index.add(contiguous_array)
+         self.chunks.extend(chunks)
 
     def search(self, query_vec: np.ndarray, k: int, filters: dict | None = None) -> list[Hit]:
-        raise NotImplementedError
+         # filters: {"doc_type": ("runbook", "postmortem"),..} 
+         query = np.ascontiguousarray(
+             query_vec, dtype=np.float32
+             ).reshape(1,-1)#    (dim,) -> (1, dim)
+         limit = min(k * 10, self.index.ntotal)
+
+         scores, indices = self.index.search(query, limit)
+
+         hits = []
+         for score, row in zip(scores[0], indices[0]): # [0] = the one query's row of results
+             if row == -1:
+                 continue
+             chunk =  self.chunks[row]
+             if (filters and 
+                    any(getattr(chunk, field) not in allowed 
+                        for field, allowed in filters.items())):
+                 continue   # chunk's field value isn't in the allowed list
+             hits.append(Hit(chunk=chunk, score=float(score)))
+             if len(hits) == k:
+                 break
+         return hits
 
     def count(self) -> int:
-        raise NotImplementedError
+        return self.index.ntotal
 
     def save(self, directory: Path) -> None:
-        raise NotImplementedError
+        directory.mkdir(parents=True, exist_ok=True)
+        faiss.write_index(self.index, str(directory / "index.faiss"))
 
+        with open(directory / "chunks.jsonl","w", encoding="utf-8") as file:
+            for chunk in self.chunks:
+                file.write(json.dumps(asdict(chunk)) + "\n")
+
+    
     @classmethod
     def load(cls, directory: Path) -> "FaissStore":
-        raise NotImplementedError
+         index = faiss.read_index(str(directory / "index.faiss"))
+         with open(directory / "chunks.jsonl", encoding="utf-8") as file:
+             chunks = [Chunk(**json.loads(line)) for line in file]
+         
+         store = cls(index.d)
+         store.index = index
+         store.chunks = chunks
+         return store
+         
 
 
 class PgVectorStore:
