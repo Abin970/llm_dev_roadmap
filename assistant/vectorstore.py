@@ -185,7 +185,7 @@ class FaissStore:
 
     
     @classmethod
-    def load(cls, directory: Path) -> "FaissStore":
+    def load(cls, directory: Path) -> "FaissStore":#return Faiss object
          index = faiss.read_index(str(directory / "index.faiss"))
          with open(directory / "chunks.jsonl", encoding="utf-8") as file:
              chunks = [Chunk(**json.loads(line)) for line in file]
@@ -212,3 +212,21 @@ class PgVectorStore:
 
     def count(self) -> int:
         raise NotImplementedError
+
+
+def new_store(kind: str, dim: int) -> VectorStore:
+    """For pipeline.py: an empty store ready for add()."""
+    if kind == "faiss":
+        return FaissStore(dim)
+    if kind == "pgvector":
+        return PgVectorStore(dim)
+    raise ValueError(f"unknown store kind: {kind!r}")
+
+EMBED_DIM = 1536
+def open_store(kind: str, faiss_dir: Path | None = None) -> VectorStore:
+    """For retrieval.py: an existing store, ready for search()."""
+    if kind == "faiss":
+        return FaissStore.load(faiss_dir or INDEX_DIR / "faiss-recursive-500")
+    if kind == "pgvector":
+        return PgVectorStore(dim=EMBED_DIM)       # connects to the existing table
+    raise ValueError(f"unknown store kind: {kind!r}")

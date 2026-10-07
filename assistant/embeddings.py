@@ -49,7 +49,7 @@ from llm_client import get_client, count_tokens  # noqa: F401  (you'll need it)
 EMBED_MODEL = "text-embedding-3-small"
 EMBED_DIM = 1536
 MAX_TOKENS_PER_INPUT = 8192
-MAX_TOKENS_PER_REQUEST = 300_000
+MAX_TOKENS_PER_REQUEST = 250_000
 MAX_INPUTS_PER_REQUEST = 2048
 
 # curl https://api.openai.com/v1/embeddings \
@@ -85,6 +85,7 @@ MAX_INPUTS_PER_REQUEST = 2048
 class Embedder(Protocol):
     model: str
     dim: int
+    tokens_used: int
 
     def embed(self, texts: list[str]) -> np.ndarray:
          """(len(texts), dim) float32, L2-normalized rows, same order as texts."""
@@ -97,12 +98,11 @@ class Embedder(Protocol):
 class OpenAIEmbedder:
     model = EMBED_MODEL
     dim = EMBED_DIM
+    tokens_used = 0
 
     def __init__(self) -> None:
-        self.tokens_used = 0
-        
-    
-
+      pass
+     
     def embed(self, texts: list[str]) -> np.ndarray:
        if not texts:
         return np.empty((0, EMBED_DIM), dtype=np.float32)
@@ -152,3 +152,8 @@ class OpenAIEmbedder:
 
     def embed_query(self, text: str) -> np.ndarray:
        return self.embed([text])[0]        
+
+
+def get_embedder(type: str) -> Embedder:
+  if(type == "openai-embedder"):
+    return OpenAIEmbedder()

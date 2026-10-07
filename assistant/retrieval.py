@@ -36,15 +36,48 @@ you've seen it.
 """
 from __future__ import annotations
 
+import vectorstore, embeddings
 from vectorstore import Hit
-
+import os
+import functools
 DEFAULT_K = 5
+
+@functools.lru_cache(maxsize=1)
+def get_store():
+     kind = os.environ.get("VECTOR_STTORE", "faiss")
+     folder = os.environ.get(
+          "FAISS_INDEX_DIR", "faiss-recursive-500-A")#on changing FAISS_INDEX_DIR 
+                                                    #call get_store.cache_clear() or new process
+     return vectorstore.open_store(kind, vectorstore.INDEX_DIR / folder)
+
+@functools.lru_cache(maxsize=1)
+def get_embedder():
+     return embeddings.get_embedder("openai-embedder")
+
 
 
 def retrieve(query: str, *, k: int = DEFAULT_K, doc_types: tuple[str, ...],
              layer: str | None = None) -> list[Hit]:
-    raise NotImplementedError("Week 5 TODO -- see this module's docstring")
+
+     vector_store = get_store()
+     embedder = get_embedder()
+     query_vector = embedder.embed_query(query)
+     filters = {"doc_tyoes": doc_types}
+     if layer is not None:
+          filters["layer"] = (layer,)
+
+     hits = vector_store.search(query_vector, k, filters)
+     return hits
+
 
 
 def format_hits(hits: list[Hit]) -> str:
-    raise NotImplementedError("Week 5 TODO -- see this module's docstring")
+     
+     if not hits:
+         return "(no relvant results)"
+     blocks = []
+     for hit in hits:
+        chk = hit.chunk
+        heading = f"{chk.title} > {chk.section}" if chk.section else chk.title
+        blocks.append(f"[{chk.chunk_id}] {heading} ({chk.url})\n{chk.text}")
+     return "\n\n".join(blocks)
