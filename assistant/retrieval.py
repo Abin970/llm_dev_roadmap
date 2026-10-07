@@ -44,7 +44,7 @@ DEFAULT_K = 5
 
 @functools.lru_cache(maxsize=1)
 def get_store():
-     kind = os.environ.get("VECTOR_STTORE", "faiss")
+     kind = os.environ.get("VECTOR_STORE", "faiss")
      folder = os.environ.get(
           "FAISS_INDEX_DIR", "faiss-recursive-500-A")#on changing FAISS_INDEX_DIR 
                                                     #call get_store.cache_clear() or new process
@@ -62,7 +62,7 @@ def retrieve(query: str, *, k: int = DEFAULT_K, doc_types: tuple[str, ...],
      vector_store = get_store()
      embedder = get_embedder()
      query_vector = embedder.embed_query(query)
-     filters = {"doc_tyoes": doc_types}
+     filters = {"doc_type": doc_types}
      if layer is not None:
           filters["layer"] = (layer,)
 
@@ -74,10 +74,10 @@ def retrieve(query: str, *, k: int = DEFAULT_K, doc_types: tuple[str, ...],
 def format_hits(hits: list[Hit]) -> str:
      
      if not hits:
-         return "(no relvant results)"
+         return "(no relevant results)"
      blocks = []
      for hit in hits:
         chk = hit.chunk
-        heading = f"{chk.title} > {chk.section}" if chk.section else chk.title
+        heading = f"{chk.title} › {chk.section}" if chk.section else chk.title
         blocks.append(f"[{chk.chunk_id}] {heading} ({chk.url})\n{chk.text}")
      return "\n\n".join(blocks)

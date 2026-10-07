@@ -46,11 +46,11 @@ answerable questions, for the setup you'd ship.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from collections import defaultdict
 
 import _bootstrap  # noqa: F401
-from golden_retrieval import Expected, GoldenQuestion
+from golden_retrieval import Expected, GoldenQuestion, GOLDEN
 from vectorstore import Chunk, Hit
-
 
 @dataclass
 class CheckResult:
@@ -67,17 +67,65 @@ class RetrievalReport:
     misses: dict[str, list[tuple[str, float]]] = field(default_factory=dict)   # qid -> [(doc_id, score)]
     not_in_corpus_top_scores: dict[str, float] = field(default_factory=dict)   # qid -> top-1 score
 
-
+norm = lambda s: " ".join(s.lower().split())
 def is_hit(chunk: Chunk, expected: Expected) -> bool:
-    raise NotImplementedError("Week 5 TODO -- see this module's docstring")
+     docs_match = chunk.doc_id == expected.doc_id
+     marker_found =  any(
+         norm(marker) in norm(chunk.text) 
+         for marker in expected.markers
+     )
+
+     return docs_match and marker_found
+         
 
 
 def hit_at_k(question: GoldenQuestion, hits: list[Hit], k: int) -> bool:
-    raise NotImplementedError("Week 5 TODO -- see this module's docstring")
+    top_k = hits[:k]
 
+    def found(expected):
+         return any(is_hit(hit.chunk, expected) for hit in top_k)
+
+    if question.needs_all:
+        return all(found(exp) for exp in question.expected)
+    return any(found(exp) for exp in question.expected)
 
 def evaluate(results: dict[str, list[Hit]], k: int) -> RetrievalReport:
-    raise NotImplementedError("Week 5 TODO -- see this module's docstring")
+
+     by_id = {q.qid: q for q in GOLDEN}
+     kind_counts = defaultdict(lambda: [0,0])
+     layer_counts = defaultdict(lambda: [0,0])
+     hits_total = scored = 0
+     misses, na_scores = {}, {}
+
+     for qid, hits in results.items():
+         ques = by_id[qid]
+         if ques.kind == "not_in_corpus":
+             na_scores[qid] = hits[0].score if hits else 0.0
+             continue
+         got  = hit_at_k(ques, hits, k)
+
+         scored += 1
+         hits_total += got
+         
+         kind_counts[ques.kind][0] += got
+         kind_counts[ques.kind][1] += 1
+
+         layer_counts[ques.layer][0] += got
+         layer_counts[ques.layer][1] += 1
+
+         if not got:
+             misses[qid] = [(h.chunk.doc_id, h.score) for h in hits[:3]]
+
+     rate = lambda c : c[0]/c[1] if c[1] else 0.0
+     return RetrievalReport(
+        k=k,
+        hit_rate=hits_total / scored if scored else 0.0,
+        by_kind={kind: rate(c) for kind, c in kind_counts.items()},
+        by_layer={layer: rate(c) for layer, c in layer_counts.items()},
+        misses=misses,
+        not_in_corpus_top_scores=na_scores,
+     )
+             
 
 
 def check_citations(citations: list[str], evidence: list[str]) -> CheckResult:
