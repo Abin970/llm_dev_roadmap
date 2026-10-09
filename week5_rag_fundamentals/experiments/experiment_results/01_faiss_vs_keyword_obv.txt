@@ -1,0 +1,132 @@
+
+
+
+k=1  overall: dense 42%   keyword 8%
+      identifier (5 questions): dense 2/5 = 40%   keyword 1/5 = 20%
+      symptom (7 questions): dense 3/7 = 43%   keyword 0/7 = 0%
+k=3  overall: dense 67%   keyword 25%
+      identifier (5 questions): dense 3/5 = 60%   keyword 2/5 = 40%
+      symptom (7 questions): dense 5/7 = 71%   keyword 1/7 = 14%
+k=5  overall: dense 75%   keyword 33%
+      identifier (5 questions): dense 4/5 = 80%   keyword 2/5 = 40%
+      symptom (7 questions): dense 5/7 = 71%   keyword 2/7 = 29%
+
+--------------------------- observation ---------------------------
+Dense beats the Week 3 keyword scorer at every k (k=3: 8/12 = 67% vs 3/12 = 25%).
+Both are below the 80% bar (10 of 12 needed; dense reaches 9 at k=5).
+12 questions only: one question = 8 points, so a one-question gap is noise.
+The symptom gap is large (k=3: 5/7 vs 1/7); the identifier gap is one question (3/5 vs 2/5).
+-------------------------------------------------------------------
+
+per question at k=3:
+  db-01    identifier dense=True   keyword=True
+  db-02    symptom    dense=True   keyword=False
+  db-03    symptom    dense=False   keyword=False
+  db-04    identifier dense=False   keyword=False
+  orch-01  identifier dense=True   keyword=False
+  orch-02  symptom    dense=False   keyword=False
+  orch-03  symptom    dense=True   keyword=False
+  orch-04  identifier dense=True   keyword=True
+  orch-05  symptom    dense=True   keyword=True
+  gw-01    symptom    dense=True   keyword=False
+  logs-01  symptom    dense=True   keyword=False
+  obs-01   identifier dense=False   keyword=False
+
+--------------------------- observation ---------------------------
+Keyword found nothing that dense missed.
+  both found it (3):    db-01, orch-04, orch-05
+  dense only (5):       db-02, orch-01, orch-03, gw-01, logs-01
+  keyword only (0)
+  neither (4):          db-03, db-04, orch-02, obs-01
+The prediction "keyword wins on identifiers" was wrong (see keyword misses below for why).
+-------------------------------------------------------------------
+
+not in corpus (best dense result anyway):
+  na-01: score 0.372  ->  postgres:wal-configuration
+  na-02: score 0.369  ->  postgres:runtime-config-replication
+  na-03: score 0.342  ->  kubernetes:content/en/docs/concepts/workloads/controllers/deployment.md
+  na-04: score 0.383  ->  kubernetes:content/en/docs/concepts/services-networking/gateway.md
+  answerable questions' best dense score: lowest 0.429, highest 0.815
+
+--------------------------- observation ---------------------------
+Questions the corpus cannot answer score 0.342-0.383, below the lowest answerable score (0.429).
+A cutoff near 0.40 would separate them on this sample only (4 vs 12 questions).
+They still return plausible chunks (MongoDB -> postgres:wal-configuration,
+Kong -> kubernetes gateway.md). A cutoff would not fix wrong-but-similar results such as
+obs-01 (0.54-0.55). Left for Week 6.
+-------------------------------------------------------------------
+
+dense misses at k=3:
+  db-03:
+        0.429  postgres:using-explain
+        0.417  postgres:monitoring-stats
+        0.414  postgres:monitoring-stats
+  db-04:
+        0.626  postgres:runtime-config-connection
+        0.550  postgres:kernel-resources
+        0.542  postgres:kernel-resources
+  orch-02:
+        0.537  kubernetes:content/en/docs/concepts/configuration/manage-resources-containers.md
+        0.516  kubernetes:content/en/docs/concepts/configuration/manage-resources-containers.md
+        0.510  kubernetes:content/en/docs/concepts/configuration/manage-resources-containers.md
+  obs-01:
+        0.554  runbooks:content/runbooks/prometheus/PrometheusErrorSendingAlertsToAnyAlertmanager.md
+        0.544  runbooks:content/runbooks/alertmanager/AlertmanagerClusterFailedToSendAlerts.md
+        0.541  runbooks:content/runbooks/prometheus/PrometheusErrorSendingAlertsToSomeAlertmanagers.md
+
+--------------------------- observation ---------------------------
+Four misses, three different causes:
+  db-04, orch-02  right page came back, but none of the 3 chunks holds the answering sentence
+                  -> chunking, experiment 2
+  obs-01          near-duplicate runbooks beat the named one (0.54-0.55)
+                  -> reranking / hybrid search, Week 6
+  db-03           wrong pages for a symptom phrasing (expected postgres:explicit-locking)
+                  -> query rewriting or hybrid search, Week 6
+-------------------------------------------------------------------
+
+keyword misses at k=3:
+  db-02:
+        5.000  postgres:runtime-config-wal
+        5.000  postgres:routine-vacuuming
+        5.000  postgres:routine-vacuuming
+  db-03:
+        5.000  postgres:runtime-config-client
+        5.000  postgres:runtime-config-locks
+        5.000  postgres:routine-vacuuming
+  db-04:
+        4.000  postgres:runtime-config-replication
+        4.000  postgres:runtime-config-replication
+        3.000  postgres:runtime-config-connection
+  orch-01:
+        4.000  runbooks:content/runbooks/etcd/etcdHighNumberOfFailedGRPCRequests.md
+        3.000  postgres:routine-vacuuming
+        3.000  postgres:wal-configuration
+  orch-02:
+        5.000  kubernetes:content/en/docs/concepts/workloads/pods/pod-lifecycle.md
+        5.000  kubernetes:content/en/docs/concepts/workloads/pods/probes.md
+        4.000  postgres:kernel-resources
+  orch-03:
+        5.000  kubernetes:content/en/docs/concepts/configuration/manage-resources-containers.md
+        5.000  kubernetes:content/en/docs/concepts/scheduling-eviction/node-pressure-eviction.md
+        4.000  postgres:hot-standby
+  gw-01:
+        5.000  kubernetes:content/en/docs/concepts/services-networking/ingress.md
+        5.000  kubernetes:content/en/docs/concepts/services-networking/ingress.md
+        5.000  runbooks:content/runbooks/kubernetes/KubePodNotReady.md
+  logs-01:
+        5.000  kubernetes:content/en/docs/concepts/configuration/configmap.md
+        5.000  kubernetes:content/en/docs/concepts/configuration/configmap.md
+        4.000  postgres:runtime-config-client
+  obs-01:
+        1.000  postgres:runtime-config-connection
+        1.000  postgres:runtime-config-resource
+        1.000  postgres:runtime-config-resource
+
+--------------------------- observation ---------------------------
+The Week 3 scorer boosts only words that contain a digit. Real identifiers here have none,
+so KubePodCrashLooping, max_connections and AlertmanagerFailedToSendAlerts weigh the same as
+"check" or "anything". The correct chunk ranked 64th (orch-01), 26th (db-04) and 56th of 59
+(obs-01, where all 59 scored chunks tied at 1). Many scores tie (5.000 repeated), so order
+among equals depends on chunk order.
+This is a limit of this scorer, not of keyword search: revisit with BM25 in Week 6.
+-------------------------------------------------------------------
