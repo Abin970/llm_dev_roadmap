@@ -15,7 +15,7 @@ Each week adds one concept and one set of experiments to the same codebase.
 
 ## Start here
 
-- **Blog post:** [Agent Loop vs. Graph: What I Actually Gained by Rebuilding My SRE Copilot in LangGraph](HASHNODE_LINK_TODO)
+- **Blog post:** [Agent Loop vs. Graph: What I Actually Gained by Rebuilding My SRE Copilot in LangGraph](https://abinjj9.hashnode.dev/agent-loop-vs-graph-rebuilding-my-sre-copilot-in-langgraph)
   covers the Week 3 → Week 4 rebuild, with code and real run output.
 - **The code that runs the copilot** is in [`assistant/`](assistant/). Each
   `weekN_*/` folder holds that week's README and experiments.
