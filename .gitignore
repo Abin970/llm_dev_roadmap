@@ -5,6 +5,11 @@ __pycache__/
 .pytest_cache/
 *.db
 blog/
+# Editor / AI-tooling files: third-party skill packs and personal settings
+.agents/
+.claude/
+.vscode/
+skills-lock.json
 # Week 5 RAG: fetched third-party docs + built indexes -- never committed
 # (re-create with `python -m ingestion.fetch` from assistant/)
 data/

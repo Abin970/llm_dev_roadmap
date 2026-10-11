@@ -46,7 +46,7 @@ DEFAULT_K = 5
 def get_store():
      kind = os.environ.get("VECTOR_STORE", "faiss")
      folder = os.environ.get(
-          "FAISS_INDEX_DIR", "faiss-recursive-500-A")#on changing FAISS_INDEX_DIR 
+          "FAISS_INDEX_DIR", "faiss-recursive-500")#on changing FAISS_INDEX_DIR 
                                                     #call get_store.cache_clear() or new process
      return vectorstore.open_store(kind, vectorstore.INDEX_DIR / folder)
 

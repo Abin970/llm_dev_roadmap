@@ -45,14 +45,94 @@ import _bootstrap  # noqa: F401
 
 from golden_retrieval import for_phase
 import retrieval_checks as rc
+from vectorstore import FaissStore, INDEX_DIR
+from retrieval import get_embedder
 
 STRATEGIES = ("fixed", "recursive", "markdown_header")
 SIZE, OVERLAP = 500, 50
+K_VALUES = (1, 3, 5)
 
 
 def main() -> None:
-    raise NotImplementedError("TODO: see the module docstring")
+    stores = {}
+    for strategy in STRATEGIES:
+        stores[strategy] = FaissStore.load(INDEX_DIR / f"faiss-{strategy}-{SIZE}-A")
+
+    questions = for_phase("A")
+    query_vectors = get_embedder().embed([q.question for q in questions])
+
+    results = {}
+    for strategy, store in stores.items():
+        results[strategy] = {q.qid: store.search(vec, k=5) for q,vec in zip(questions, query_vectors)}
+
+    # one report per (strategy, k), kept in ONE dictionary so it can be looked up by its key
+    strategy_report_over_k = {
+            f"{strategy}_k:{k}": rc.evaluate(results[strategy], k)
+            for k in K_VALUES for strategy in STRATEGIES
+            }
 
 
+    # ---- hit rate for every strategy at every k (all 9 combinations)
+    answerable = 0
+    for q in questions:
+        if q.kind != "not_in_corpus":
+            answerable += 1
+
+    print(f"\n== hit rate, {answerable} answerable questions ==")
+    for k in K_VALUES:
+        for strg in STRATEGIES:
+            report = strategy_report_over_k[f"{strg}_k:{k}"]
+            hits_total = round(report.hit_rate * answerable)
+            print(f"k={k}  {strg:16s} {hits_total:2d}/{answerable} = {report.hit_rate:4.0%}")
+
+            for kind in report.by_kind:
+                # the groups are small, so show how many questions of this kind there are
+                # (one question can move a percentage by 10 points or more)
+                kind_total = 0
+                for q in questions:
+                    if q.kind == kind:
+                        kind_total += 1
+                hits_by_kind = round(report.by_kind[kind] * kind_total)
+                print(f"        {kind:11s} {hits_by_kind}/{kind_total} = {report.by_kind[kind]:4.0%}")
+        print()
+
+
+
+    print("== per question at k=3 ==")
+    print(f"{'question':9s} {'kind':11s}" + "".join(f"{s:>17s}" for s in STRATEGIES))
+    
+    for q in questions:
+        if q.kind == "not_in_corpus":
+            continue                                   # nothing to find, so no hit/miss
+        row = f"{q.qid:9s} {q.kind:11s}"
+        marks = []
+        for strategy in STRATEGIES:
+            got = rc.hit_at_k(q, results[strategy][q.qid], 3)     # strategy first, then qid
+            marks.append(got)
+            row += f"{'hit' if got else 'MISS':>17s}"
+        if len(set(marks)) > 1:                        # the strategies disagree on this question
+            row += "   <-- differs"
+        print(row)
+
+    # ---- top-1 chunk under each strategy, for a few questions
+    # db-04 and orch-02 were "right page, wrong chunk" misses in experiment 1, so they are the
+    # ones chunking should be able to change. db-01 and orch-05 were hits, as a comparison.
+    # hit_at_k(..., 1) is True only when the TOP result holds the answering passage.
+    print("\n== top-1 chunk under each strategy ==")
+    by_id = {q.qid: q for q in questions}
+    for qid in ("db-04", "orch-02", "db-01", "orch-05"):
+        q = by_id[qid]
+        print(f"\n===== {qid} ({q.kind}): {q.question}")
+        for strategy in STRATEGIES:
+            hits = results[strategy][qid]
+            top = hits[0]
+            top_is_answer = rc.hit_at_k(q, hits, 1)
+            print(f"--- {strategy}: score {top.score:.3f}, top-1 {'HIT' if top_is_answer else 'miss'}, {top.chunk.chunk_id}")
+            if top.chunk.section:
+                print(f"    section: {top.chunk.section}")
+            print("    " + top.chunk.text[:250].replace("\n", " "))
+    
+            
+    
 if __name__ == "__main__":
     main()

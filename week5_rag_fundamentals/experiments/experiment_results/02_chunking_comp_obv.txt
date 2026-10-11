@@ -1,0 +1,176 @@
+--------------------------- the three strategies ---------------------------
+All three: 500-token target, 50-token overlap, tokens counted with cl100k_base.
+
+fixed            Cuts every 500 tokens wherever that lands, even mid-sentence or mid-code-block.
+                 Nothing about the text's structure is used; every chunk is (nearly) full size.
+recursive        Also aims for 500 tokens, but cuts at the most natural break available:
+                 blank line first, then newline, then space. Chunks mostly end at paragraph edges.
+markdown_header  Cuts at headings (#, ##, ###) first, so each section is its own chunk and carries
+                 its heading path as metadata. A section over 500 tokens is cut again with the
+                 recursive method; a short section stays short (median 177 tokens). Headings with
+                 nothing under them are dropped.
+----------------------------------------------------------------------------
+
+
+strategy=fixed size=500 overlap=50
+chunks: 764
+  by doc_type: {'runbook': 118, 'vendor_doc': 646}
+  by layer:    {'database': 327, 'gateway_lb': 19, 'logs_config': 37, 'observability': 41, 'orchestration': 340}
+  tokens per chunk: min/median/max = 13/500/500
+  total tokens to embed: 334,083
+
+
+
+strategy=recursive size=500 overlap=50
+chunks: 817
+  by doc_type: {'runbook': 118, 'vendor_doc': 699}
+  by layer:    {'database': 358, 'gateway_lb': 19, 'logs_config': 40, 'observability': 41, 'orchestration': 359}
+  tokens per chunk: min/median/max = 13/438/498
+  total tokens to embed: 313,178
+
+
+strategy=markdown_header size=500 overlap=50
+chunks: 1400
+  by doc_type: {'runbook': 416, 'vendor_doc': 984}
+  by layer:    {'database': 407, 'gateway_lb': 39, 'logs_config': 67, 'observability': 142, 'orchestration': 745}
+  tokens per chunk: min/median/max = 6/177/498
+  total tokens to embed: 309,572
+
+┌──────────────────────┬────────┬───────────────────────────────────────┬─────────────────┐
+│                      │ chunks │ tokens per chunk (min / median / max) │ tokens to embed │
+├──────────────────────┼────────┼───────────────────────────────────────┼─────────────────┤
+│ fixed                │ 764    │ 13 / 500 / 500                        │ 334,083         │
+├──────────────────────┼────────┼───────────────────────────────────────┼─────────────────┤
+│ recursive (baseline) │ 817    │ 13 / 438 / 498                        │ 313,178         │
+├──────────────────────┼────────┼───────────────────────────────────────┼─────────────────┤
+│ markdown_header      │ 1,400  │ 6 / 177 / 498                         │ 309,681         │
+└──────────────────────┴────────┴───────────────────────────────────────┴─────────────────┘
+
+
+At k=3: markdown-headers should improve the "right page wrong chunk" in exp1 against rec-chunks,
+but small chunks might underpeform for symptom
+
+
+
+
+== hit rate, 12 answerable questions ==
+k=1  fixed             2/12 =  17%
+        identifier  1/5 =  20%
+        symptom     1/7 =  14%
+k=1  recursive         5/12 =  42%
+        identifier  2/5 =  40%
+        symptom     3/7 =  43%
+k=1  markdown_header   2/12 =  17%
+        identifier  1/5 =  20%
+        symptom     1/7 =  14%
+
+--------------------------- observation k=1 ---------------------------
+Recursive leads (5/12 vs 2/12): its chunks end at paragraph edges, so the best chunk is often the right one.
+Fixed chunks often start mid-sentence. Markdown_header has many small chunks competing for first
+place (its top-1 missed on all four side-by-side questions below).
+-----------------------------------------------------------------------
+
+k=3  fixed             7/12 =  58%
+        identifier  3/5 =  60%
+        symptom     4/7 =  57%
+k=3  recursive         8/12 =  67%
+        identifier  3/5 =  60%
+        symptom     5/7 =  71%
+k=3  markdown_header   9/12 =  75%
+        identifier  5/5 = 100%
+        symptom     4/7 =  57%
+
+--------------------------- observation k=3 ---------------------------
+Markdown_header leads (9/12 vs 8 and 7): small focused chunks reach the top 3 even when not first.
+It gains db-04 and obs-01 (identifiers 3/5 -> 5/5; hypothesis: the chunk carries the setting/alert name)
+and loses orch-03. Fixed trails: it cuts through answering passages (db-04).
+db-03 and orch-02 are missed by all three, so chunking does not fix them.
+-----------------------------------------------------------------------
+
+k=5  fixed            10/12 =  83%
+        identifier  5/5 = 100%
+        symptom     5/7 =  71%
+k=5  recursive         9/12 =  75%
+        identifier  4/5 =  80%
+        symptom     5/7 =  71%
+k=5  markdown_header  10/12 =  83%
+        identifier  5/5 = 100%
+        symptom     5/7 =  71%
+
+--------------------------- observation k=5 ---------------------------
+The strategies converge (10, 9, 10 of 12): with 5 slots the right chunk usually fits in, so a
+one-question gap is noise. Pattern across k: small chunks rank lower at first place but reach the
+top few; larger paragraph chunks do the opposite.
+-----------------------------------------------------------------------
+
+
+┌─────────────────┬──────┬────────────┬─────────────┐
+│                 │ k=1  │    k=3     │     k=5     │
+├─────────────────┼──────┼────────────┼─────────────┤
+│ fixed           │ 2/12 │ 7/12 (58%) │ 10/12 (83%) │
+├─────────────────┼──────┼────────────┼─────────────┤
+│ recursive       │ 5/12 │ 8/12 (67%) │ 9/12 (75%)  │
+├─────────────────┼──────┼────────────┼─────────────┤
+│ markdown_header │ 2/12 │ 9/12 (75%) │ 10/12 (83%) │
+└─────────────────┴──────┴────────────┴─────────────┘
+
+== per question at k=3 ==
+question  kind                   fixed        recursive  markdown_header
+db-01     identifier               hit              hit              hit
+db-02     symptom                  hit              hit              hit
+db-03     symptom                 MISS             MISS             MISS
+db-04     identifier              MISS             MISS              hit   <-- differs
+orch-01   identifier               hit              hit              hit
+orch-02   symptom                 MISS             MISS             MISS
+orch-03   symptom                  hit              hit             MISS   <-- differs
+orch-04   identifier               hit              hit              hit
+orch-05   symptom                 MISS              hit              hit   <-- differs
+gw-01     symptom                  hit              hit              hit
+logs-01   symptom                  hit              hit              hit
+obs-01    identifier              MISS             MISS              hit   <-- differs
+
+== top-1 chunk under each strategy ==
+
+===== db-04 (identifier): What does max_connections control in PostgreSQL, and can it be changed without a restart?
+--- fixed: score 0.612, top-1 miss, postgres:runtime-config-connection#1
+     100 connections, but might be less if your kernel settings will not support it (as determined during initdb). This parameter can only be set at server start.      PostgreSQL sizes certain resources based directly on the value of `max_connections`. I
+--- recursive: score 0.626, top-1 miss, postgres:runtime-config-connection#1
+    PostgreSQL sizes certain resources based directly on the value of `max_connections`. Increasing its value leads to higher allocation of those resources, including shared memory.      When running a standby server, you must set this parameter to the s
+--- markdown_header: score 0.600, top-1 miss, postgres:kernel-resources#11
+    section: 18.4.Managing Kernel Resources › 18.4.3.Resource Limits
+    On the other side of the coin, some systems allow individual processes to open large numbers of files; if more than a few processes do so then the system-wide limit can easily be exceeded. If you find this happening, and you do not want to alter the 
+
+===== orch-02 (symptom): A container keeps getting killed and restarted when traffic peaks, and its memory graph climbs right before each kill. What is killing it?
+--- fixed: score 0.623, top-1 miss, kubernetes:content/en/docs/concepts/configuration/manage-resources-containers.md#16
+     to kubernetes-node-tf0f   Normal  Pulled     41s   kubelet            Container image "saadali/simmemleak:latest" already present on machine   Normal  Created    41s   kubelet            Created container simmemleak   Normal  Started    40s   kubele
+--- recursive: score 0.537, top-1 miss, kubernetes:content/en/docs/concepts/configuration/manage-resources-containers.md#16
+    ```shell kubectl describe pod simmemleak-hra99 ```  The output is similar to: ``` Name:                           simmemleak-hra99 Namespace:                      default Image(s):                       saadali/simmemleak Node:                       
+--- markdown_header: score 0.644, top-1 miss, kubernetes:content/en/docs/concepts/configuration/manage-resources-containers.md#28
+    section: Troubleshooting › My container is terminated
+    Normal  Killing    32s   kubelet            Killing container with id ead3fb35-5cf5-44ed-9ae1-488115be66c6: Need to kill Pod ```   In the preceding example, the `Restart Count:  5` indicates that the `simmemleak` container in the Pod was terminated a
+
+===== db-01 (identifier): What does idle_in_transaction_session_timeout do in PostgreSQL, and what's its default?
+--- fixed: score 0.593, top-1 miss, postgres:runtime-config-client#5
+    sql-set-transaction.html "SET TRANSACTION") command.  `transaction_read_only` (`boolean`) :   This parameter reflects the current transaction's read-only status. At the beginning of each transaction, it is set to the current value of [default_transac
+--- recursive: score 0.706, top-1 HIT, postgres:runtime-config-client#7
+    Setting `transaction_timeout` in `postgresql.conf` is not recommended because it would affect all sessions.      ### Note      Prepared transactions are not subject to this timeout.  `lock_timeout` (`integer`) :   Abort any statement that waits longe
+--- markdown_header: score 0.667, top-1 miss, postgres:runtime-config-client#7
+    section: 19.11.Client Connection Defaults › 19.11.1.Statement Behavior
+    The timeout is measured from the time a command arrives at the server until it is completed by the server. If multiple SQL statements appear in a single simple-query message, the timeout is applied to each statement separately. (PostgreSQL versions b
+
+===== orch-05 (symptom): We got a warning that a node's root filesystem is predicted to run out of space within a day. Which alert is this, and how is it mitigated?
+--- fixed: score 0.720, top-1 miss, runbooks:content/runbooks/node/NodeFilesystemAlmostOutOfSpace.md#0
+    # NodeFilesystemAlmostOutOfSpace  ## Meaning  This alert is similar to the NodeFilesystemSpaceFillingUp alert, but rather than being based on a prediction that a filesystem will become full in a certain amount of time, it uses simple static threshold
+--- recursive: score 0.720, top-1 miss, runbooks:content/runbooks/node/NodeFilesystemAlmostOutOfSpace.md#0
+    # NodeFilesystemAlmostOutOfSpace  ## Meaning  This alert is similar to the NodeFilesystemSpaceFillingUp alert, but rather than being based on a prediction that a filesystem will become full in a certain amount of time, it uses simple static threshold
+--- markdown_header: score 0.706, top-1 miss, runbooks:content/runbooks/node/NodeFilesystemAlmostOutOfSpace.md#0
+    section: NodeFilesystemAlmostOutOfSpace › Meaning
+    # NodeFilesystemAlmostOutOfSpace   ## Meaning   This alert is similar to the NodeFilesystemSpaceFillingUp alert, but rather than being based on a prediction that a filesystem will become full in a certain amount of time, it uses simple static thresho
+
+
+top-1 summary
+            ques            |             fixed           |        recurssive          |          markdown              |       
+    db-04 (identifier)      |    score 0.612, top-1 miss  |    score 0.626, top-1 miss |      score 0.600, top-1 miss   |
+    orch-02 (symptom)       |    score 0.623, top-1 miss  |   score 0.537, top-1 miss  |      score 0.644, top-1 miss   |
+    db-01 (identifier)      |    score 0.593, top-1 miss  |    score 0.706, top-1 HIT  |      score 0.667, top-1 miss   |
+    orch-05 (symptom)       |    score 0.720, top-1 miss  |    score 0.720, top-1 miss |      score 0.706, top-1 miss   |

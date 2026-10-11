@@ -122,6 +122,14 @@ def markdown_header_chunks(doc: SourceDoc, size: int = DEFAULT_SIZE, overlap: in
          section = " › ".join(piece.metadata[k] for k in ("h1", "h2", "h3") if k in piece.metadata)
          if not text.strip():
             continue
+         # skip a heading with nothing under it (e.g. "## Diagnosis" or "## Diagnosis\nTODO"):
+         # it has no content, but its vector could still rank high for a query about that heading.
+         # Only the chunk id gap remains (#1, #3), which is fine: ids just need to be unique and stable.
+         body_lines = [line for line in text.splitlines()
+                       if line.strip() and not line.lstrip().startswith("#")]
+         body = " ".join(body_lines).strip()
+         if not body or body == "TODO":
+            continue
          chunks.append(_make_chunk(doc, position=i, text=text, section=section))
      return chunks
 

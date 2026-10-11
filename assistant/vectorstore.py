@@ -91,6 +91,10 @@ import faiss
 import numpy as np
 import json
 
+from pgvector.psycopg import connect,register_vector, sql
+import dataclasses
+
+
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 INDEX_DIR = REPO_ROOT / "data" / "index"     # gitignored, like data/corpus
@@ -109,6 +113,9 @@ class Chunk:
     title: str         # document title
     section: str       # "H1 › H2 › H3" for header-aware chunks, else ""
 
+
+CHUNK_FIELDS = [f.name for f in dataclasses.fields(Chunk)]
+# ['chunk_id', 'doc_id', 'text', 'source', 'doc_type', 'layer', 'url', 'title', 'section']
 
 @dataclass(frozen=True)
 class Hit:
@@ -202,7 +209,21 @@ class PgVectorStore:
 
     def __init__(self, dim: int, dsn: str | None = None, table: str = "chunks") -> None:
         self.dsn = dsn or os.environ.get("PGVECTOR_DSN", DEFAULT_DSN)
-        raise NotImplementedError
+        conn = connect(dsn, autocommit=True)
+        conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
+        register_vector(conn)
+
+
+        create_table = f"""CREATE TABLE IF NOT EXISTS chunks (
+            chunk_id  text PRIMARY KEY,
+            doc_id    text NOT NULL,   text    text NOT NULL,   source  text NOT NULL,
+            doc_type  text NOT NULL,   layer   text NOT NULL,   url     text NOT NULL,
+            title     text NOT NULL,   section text NOT NULL,
+            embedding vector({dim}) NOT NULL
+        )"""
+        
+
+        
 
     def add(self, chunks: list[Chunk], vectors: np.ndarray) -> None:
         raise NotImplementedError

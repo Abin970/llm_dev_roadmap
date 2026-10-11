@@ -58,7 +58,7 @@ def keyword_hits(question: str, chunks: list[Chunk], k: int)->list[Hit]:
     return [Hit(chunk=chunks[i], score=float(score)) for i,score in ranked]
 
 def main() -> None:
-    questions = for_phase("A")
+    questions = for_phase(None)   # full index (all 308 docs), so all 37 golden questions apply
     faiss_store = get_store()
     embedder = get_embedder()
 
